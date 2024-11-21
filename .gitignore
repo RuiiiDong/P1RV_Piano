@@ -1,0 +1,29 @@
+# Windows
+Thumbs.db
+Desktop.ini
+
+# VS
+.vs/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Dd]Release/
+[Dd]ReleasePublic/
+x64/
+x86/
+x64/Debug/
+x64/Release/
+x86/Debug/
+x86/Release/
+
+# OpenGL
+*.exe
+*.dll
+*.pdb
+*.obj
