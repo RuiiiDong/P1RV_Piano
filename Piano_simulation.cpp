@@ -1,6 +1,6 @@
-﻿#define GLEW_STATIC
+﻿#include <Windows.h>
+#define GLEW_STATIC
 #include <GL/glew.h>
-#include <Windows.h>
 #include <iostream>
 #include <GL/gl.h>
 #include <GLUT.h>
@@ -17,8 +17,9 @@ float whiteKeyWidth = 2.4f; // Largeur des touches blanches : 2.4 cm
 float whiteKeyHeight = 15.0f;  // Longueur des touches blanches : 15 cm
 float blackKeyWidth = 1.4f;    // Largeur des touches noires : 1.4 cm
 float blackKeyHeight = 10.0f; // Longueur des touches noires :10 cm
-float gap = 0.2f;// Espace entre les touches blanches
-
+float gap = 0.1f;// Espace entre les touches blanches
+char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' };
+char blackKeys[] = { 'W', 'E', 'T', 'Y', 'U' };
 // Fonction pour charger une texture à partir d'un fichier image
 GLuint loadTexture(const char* filePath) {
     int width, height, nrChannels;
@@ -174,8 +175,7 @@ void drawPiano() {
     float whiteKeyX = -7.2f;
     float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f }; 
     float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap; 
-    char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' };
-    char blackKeys[] = { 'W', 'E', 'T', 'Y', 'U' };
+
     for (int i = 0; i < 7; ++i) {
         drawWhiteKey(whiteKeyX + i *( whiteKeyWidth+gap), keyStatus[whiteKeys[i]],whiteKeys[i]);
         
@@ -208,6 +208,57 @@ void keyboardUp(unsigned char key, int x, int y) {
     glutPostRedisplay();
 }
 
+void mouse(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        GLdouble modelview[16];
+        GLdouble projection[16];
+        GLint viewport[4];
+        GLdouble worldX, worldY, worldZ;
+
+        glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
+        glGetDoublev(GL_PROJECTION_MATRIX, projection);
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        //viewport[3]  height of  window
+        gluUnProject(x, viewport[3] - y, 0, modelview, projection, viewport, &worldX, &worldY, &worldZ);
+        cout << "Mouse click (world): (" << worldX << ", " << worldY << ", " << worldZ << ")\n";
+
+        float whiteKeyX = -7.2f;
+        float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
+        float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap;
+        for (int i = 0; i < 5; ++i) {
+            float blackKeyX = whiteKeyX + blackKeyOffsets[i] * totalWhiteKeyWidthWithGap - blackKeyWidth / 2.0f;
+            float blackKeyYmax = whiteKeyHeight / 2.0f;
+            float blackKeyYmin = whiteKeyHeight / 2.0f - blackKeyHeight;
+            cout << "Black key " << i << ": X range (" << blackKeyX << ", "
+                << blackKeyX + blackKeyWidth << "), Y range (" << blackKeyYmin
+                << ", " << blackKeyYmax << ")\n";
+            if (worldX >= blackKeyX && worldX <= blackKeyX + blackKeyWidth &&
+                worldY >= blackKeyYmin && worldY <= blackKeyYmax) {
+                keyStatus[blackKeys[i]] = true;
+                glutPostRedisplay();
+                return;
+            }
+        }
+        for (int i = 0; i < 7; ++i) {
+            float keyStartX = whiteKeyX + i * (whiteKeyWidth + gap) - whiteKeyWidth / 2.0f;
+            float keyEndX = keyStartX + whiteKeyWidth;
+            float keyStartY = -whiteKeyHeight / 2.0f;
+            float keyEndY = whiteKeyHeight / 2.0f;
+            if (worldX >= keyStartX && worldX <= keyEndX &&
+                worldY >= keyStartY && worldY <= keyEndY) {
+                keyStatus[whiteKeys[i]] = true;
+                glutPostRedisplay();
+                return;
+            }
+        }
+    }
+    else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
+        for (auto& status : keyStatus) {
+            status.second = false;
+        }
+        glutPostRedisplay();
+    }
+}
 
 // Fonction d'initialisation
 void init() {
@@ -217,6 +268,7 @@ void init() {
 
     glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
     glMatrixMode(GL_PROJECTION);
+   
     // Définir les limites du système de coordonnées en projection orthographique
     glOrtho(-20, 20, -15, 15, 1.0, 200.0);
     glMatrixMode(GL_MODELVIEW);
@@ -235,6 +287,7 @@ int main(int argc, char** argv) {
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboardDown);
     glutKeyboardUpFunc(keyboardUp);
+    glutMouseFunc(mouse);
     glutMainLoop();
     return 0;
 }
