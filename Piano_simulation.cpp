@@ -8,6 +8,7 @@
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
+#include<SDL.h>
 
 using namespace std;
 map<char, bool> keyStatus;
@@ -63,6 +64,64 @@ void drawText(const char* text, float x, float y, float z, float r, float g, flo
     }
 }
 
+void drawArc(float centerX, float centerY, float z, float radius, float startAngle, float endAngle, bool iscontour) {
+    int segments = 30; 
+    if (!iscontour)
+        glBegin(GL_TRIANGLE_FAN);
+    else
+        glBegin(GL_LINE_LOOP);
+
+    glVertex2f(centerX, centerY); 
+    for (int i = startAngle; i <= endAngle; i++) {
+        float theta = i * 3.14159265359f / 180.0f;
+        float x = centerX + radius * cos(theta);
+        float y = centerY + radius * sin(theta);
+        glVertex3f(x, y, z);
+    }
+    glEnd();
+}
+
+void drawRoundedRectangle(float centerX, float centerY, float z, float width, float height, float radius, bool iscontour) {
+    //  Dessinez le rectangle du corps
+    float x = centerX - width / 2.0f;
+    float y = centerY - height / 2.0f;
+    if (!iscontour)
+        glBegin(GL_QUADS);
+    else
+        glBegin(GL_LINE_LOOP);
+    glVertex3f(x + radius, y, z);                   
+    glVertex3f(x + width - radius, y, z);         
+    glVertex3f(x + width - radius, y + height, z);  
+    glVertex3f(x + radius, y + height, z);        
+    glEnd();
+
+    // Dessinez quatre coins arrondis (en utilisant des quarts de cercle)
+    drawArc(x + radius, y + radius, z, radius, 180, 270, iscontour);// En bas à gauche
+    drawArc(x + width - radius, y + radius, z, radius, 270, 360, iscontour);// en bas à droite
+    drawArc(x + width - radius, y + height - radius, z, radius, 0, 90, iscontour);// en haut à droite
+    drawArc(x + radius, y + height - radius, z, radius, 90, 180, iscontour);// en haut à gauche
+
+    if (!iscontour)
+        glBegin(GL_QUADS);
+    else
+        glBegin(GL_LINE_LOOP);
+    glVertex3f(x, y + radius, z);                    
+    glVertex3f(x + radius, y + radius, z);           
+    glVertex3f(x + radius, y + height - radius, z);   
+    glVertex3f(x, y + height - radius, z);       
+    glEnd();
+
+    if (!iscontour)
+        glBegin(GL_QUADS);
+    else
+        glBegin(GL_LINE_LOOP);
+    glVertex3f(x + width - radius, y + radius, z);   
+    glVertex3f(x + width, y + radius, z);         
+    glVertex3f(x + width, y + height - radius, z);  
+    glVertex3f(x + width - radius, y + height - radius, z);        
+    glEnd();
+}
+
 // Fonction pour dessiner une touche blanche
 void drawWhiteKey(float x,bool isPressed, char label) {
     // Charger la texture de la touche blanche (seulement une fois)
@@ -95,8 +154,7 @@ void drawWhiteKey(float x,bool isPressed, char label) {
     glColor4f(0.05f, 0.05f, 0.05f, 0.4f);  // Couleur gris  pour l'ombre
     glPushMatrix();
     glTranslatef(0.13f, -0.13f, -0.13f); // Décalage de l'ombre
-    glScalef(whiteKeyWidth, whiteKeyHeight, 1.0f);
-    glutSolidCube(1.0);
+    drawRoundedRectangle(0.0, 0.0, 0.0f, whiteKeyWidth, whiteKeyHeight, 0.2f, 0);
     glPopMatrix();
 
     // Changer la couleur de la touche en fonction de son état (appuyée ou non)
@@ -106,46 +164,45 @@ void drawWhiteKey(float x,bool isPressed, char label) {
     else {
         glColor3f(1.0f, 1.0f, 1.0f);
     }
-
+    drawRoundedRectangle(0.0, 0.0, 1.0f, whiteKeyWidth, whiteKeyHeight, 0.2f, 0);
     glScalef(whiteKeyWidth, whiteKeyHeight, 1.0f);
+    glTranslatef(0.0f, 0.0f, -3.0f);
     glutSolidCube(1.0);// Dessiner un cube solide représentant la touche
-
-    // Dessiner le contour de la touche avec une couleur grise et une épaisseur de ligne plus grande
-    glColor3f(0.4f, 0.4f, 0.4f);  
-    glLineWidth(3.0f);  // Définir l'épaisseur des lignes pour le bord
-    glBegin(GL_LINE_LOOP);
-    glVertex2f(-0.5f, -0.5f); 
-    glVertex2f(0.5f, -0.5f); 
-    glVertex2f(0.5f, 0.5f); 
-    glVertex2f(-0.5f, 0.5f);
-    glEnd();
-    
     glPopMatrix();
 
-    drawText(string(1, label).c_str(), x - 0.2f, -5.0f, 0.6f, 0.0f, 0.0f, 0.0f);
+    // Dessiner le contour de la touche avec une couleur grise et une épaisseur de ligne plus grande
+    glPushMatrix();
+    glTranslatef(x, 0.0f, 0.0f);
+    glColor3f(0.4f, 0.4f, 0.4f);
+    glLineWidth(3.0f);  // Définir l'épaisseur des lignes pour le bord
+    drawRoundedRectangle(0.0, 0.0, 0.0f, whiteKeyWidth, whiteKeyHeight, 0.2f, 1);
+
+    glPopMatrix();
+
+    drawText(string(1, label).c_str(), x - 0.2f, -5.0f, 1.5f, 0.0f, 0.0f, 0.0f);
 }
 
 // Fonction pour dessiner une touche noire
 void drawBlackKey(float x, bool isPressed, char label) {
     glPushMatrix();
-    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.5f);
-
+    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.1f);
     // Dessiner l'ombre de la touche noire
-    glColor4f(0.1f, 0.1f, 0.1f, 0.3f);  
-    glPushMatrix();
+    glColor4f(0.1f, 0.1f, 0.1f, 0.4f);
     glTranslatef(0.05f, -0.1f, -0.05f); //Décalage de l'ombre
-    glScalef(blackKeyWidth, blackKeyHeight, 1.0f);
-    glutSolidCube(1.0);
+    drawRoundedRectangle(0.0, 0.0, 0.7f, blackKeyWidth, blackKeyHeight, 0.2f, 0);
     glPopMatrix();
 
     // Définir la couleur de la touche noire en fonction de son état (appuyée ou non)
+    glPushMatrix();
+    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 1.0f);
+
     if (isPressed) {
         glColor3f(1.0f, 0.7f, 0.4f);
     }
     else {
-        glColor3f(0.0f, 0.0f, 0.0f);
+        glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
     }
-
+    drawRoundedRectangle(0.0, 0.0, 1.0f, blackKeyWidth, blackKeyHeight, 0.15f, 0);
     glScalef(blackKeyWidth, blackKeyHeight, 1.0f);
     glutSolidCube(1.0);
     glPopMatrix();
@@ -153,21 +210,15 @@ void drawBlackKey(float x, bool isPressed, char label) {
     // Dessiner le contour de la touche noire pour créer un effet visuel
     glPushMatrix();
     // Déplacer légèrement pour que le contour soit devant la touche
-    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.6f); 
-    glColor3f(0.4f, 0.4f, 0.4f);  
+    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.5f);
+    glColor3f(0.4f, 0.4f, 0.4f);
     glLineWidth(2.0f);  // Définir l'épaisseur des lignes pour le contour
-    glScalef(blackKeyWidth, blackKeyHeight, 1.0f);  
+    float scale = 1.005f;
+    glScalef(scale, scale, scale);
+    drawRoundedRectangle(0.0, 0.0, 1.0f, blackKeyWidth, blackKeyHeight, 0.2f, 1);
 
-    glBegin(GL_LINE_LOOP);
-    glVertex3f(-0.5f, -0.5f, 0.0f);  
-    glVertex3f(0.5f, -0.5f, 0.0f);   
-    glVertex3f(0.5f, 0.5f, 0.0f);   
-    glVertex3f(-0.5f, 0.5f, 0.0f); 
-    glEnd();
     glPopMatrix();
-
-
-    drawText(string(1, label).c_str(), x - 0.15f, -0.8f, 1.6f, 1.0f, 1.0f, 1.0f);
+    drawText(string(1, label).c_str(), x - 0.15f, -0.8f, 2.5f, 1.0f, 1.0f, 1.0f);
 }
 
 // Fonction pour dessiner l'ensemble du piano
@@ -220,7 +271,6 @@ void mouse(int button, int state, int x, int y) {
         glGetIntegerv(GL_VIEWPORT, viewport);
         //viewport[3]  height of  window
         gluUnProject(x, viewport[3] - y, 0, modelview, projection, viewport, &worldX, &worldY, &worldZ);
-        cout << "Mouse click (world): (" << worldX << ", " << worldY << ", " << worldZ << ")\n";
 
         float whiteKeyX = -7.2f;
         float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
@@ -229,9 +279,6 @@ void mouse(int button, int state, int x, int y) {
             float blackKeyX = whiteKeyX + blackKeyOffsets[i] * totalWhiteKeyWidthWithGap - blackKeyWidth / 2.0f;
             float blackKeyYmax = whiteKeyHeight / 2.0f;
             float blackKeyYmin = whiteKeyHeight / 2.0f - blackKeyHeight;
-            cout << "Black key " << i << ": X range (" << blackKeyX << ", "
-                << blackKeyX + blackKeyWidth << "), Y range (" << blackKeyYmin
-                << ", " << blackKeyYmax << ")\n";
             if (worldX >= blackKeyX && worldX <= blackKeyX + blackKeyWidth &&
                 worldY >= blackKeyYmin && worldY <= blackKeyYmax) {
                 keyStatus[blackKeys[i]] = true;
@@ -278,7 +325,7 @@ int main(int argc, char** argv) {
     for (char key : {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'W', 'E', 'T', 'Y', 'U'}) {
         keyStatus[key] = false;
     }
-    glutInit(&argc, argv);
+    
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(800, 600);
     glutCreateWindow("Piano simulation");
@@ -288,6 +335,7 @@ int main(int argc, char** argv) {
     glutKeyboardFunc(keyboardDown);
     glutKeyboardUpFunc(keyboardUp);
     glutMouseFunc(mouse);
+
     glutMainLoop();
     return 0;
 }
