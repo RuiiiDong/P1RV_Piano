@@ -71,8 +71,8 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>E:\Dev\SDL2-2.30.9\include;$(IncludePath)</IncludePath>
-    <LibraryPath>E:\Dev\SDL2-2.30.9\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\Dev\SDL2-2.30.9\include;E:\Dev\SDL2_mixer-2.8.0\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\Dev\SDL2-2.30.9\lib;E:\Dev\SDL2_mixer-2.8.0\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -86,8 +86,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>E:\Dev\Glut\lib;E:\Dev\glew-2.1.0\lib\Release\Win32;E:\Dev\SDL2-2.30.9\lib\x86</AdditionalLibraryDirectories>
-      <AdditionalDependencies>opengl32.lib;glu32.lib;glut32.lib;Shell32.lib;glew32s.lib;SDL2.lib;SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>E:\Dev\Glut\lib;E:\Dev\glew-2.1.0\lib\Release\Win32;E:\Dev\SDL2-2.30.9\lib\x86;E:\Dev\SDL2_mixer-2.8.0\lib\x86</AdditionalLibraryDirectories>
+      <AdditionalDependencies>opengl32.lib;glu32.lib;glut32.lib;Shell32.lib;glew32s.lib;SDL2.lib;SDL2main.lib;SDL2_mixer.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

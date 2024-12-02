@@ -9,10 +9,12 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include<SDL.h>
+#include <SDL_mixer.h>
 
 using namespace std;
 map<char, bool> keyStatus;
-
+map<char, bool>mouseStatus;
+map<char, Mix_Chunk*> soundEffects;
 // Définition des dimensions des touches du piano
 float whiteKeyWidth = 2.4f; // Largeur des touches blanches : 2.4 cm
 float whiteKeyHeight = 15.0f;  // Longueur des touches blanches : 15 cm
@@ -55,6 +57,47 @@ GLuint loadTexture(const char* filePath) {
     glGenerateMipmap(GL_TEXTURE_2D);
     stbi_image_free(data);
     return texture;
+}
+
+void initializeAudio() {
+    if (SDL_Init(SDL_INIT_AUDIO) < 0) {
+        cerr << "Échec d'initialisation de SDL : " << SDL_GetError() << endl;
+        exit(1);
+    }
+    if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
+        cerr<< "Échec d'ouverture de Mix_OpenAudio : " << Mix_GetError() <<endl;
+        exit(1);
+    }
+    Mix_AllocateChannels(100);
+    // Charger les fichiers audio pour chaque touche
+    soundEffects['A'] = Mix_LoadWAV("sounds/A.wav");
+    soundEffects['S'] = Mix_LoadWAV("sounds/S.wav");
+    soundEffects['D'] = Mix_LoadWAV("sounds/D.wav");
+    soundEffects['F'] = Mix_LoadWAV("sounds/F.wav");
+    soundEffects['G'] = Mix_LoadWAV("sounds/G.wav");
+    soundEffects['H'] = Mix_LoadWAV("sounds/H.wav");
+    soundEffects['J'] = Mix_LoadWAV("sounds/J.wav");
+
+    soundEffects['W'] = Mix_LoadWAV("sounds/W.wav");
+    soundEffects['E'] = Mix_LoadWAV("sounds/E.wav");
+    soundEffects['T'] = Mix_LoadWAV("sounds/T.wav");
+    soundEffects['Y'] = Mix_LoadWAV("sounds/Y.wav");
+    soundEffects['U'] = Mix_LoadWAV("sounds/U.wav");
+
+    // Vérifiez que tous les sons sont chargés
+    for (auto& pair : soundEffects) {
+        if (!pair.second) {
+            cerr << "Impossible de charger le fichier audio pour la touche " << pair.first << ": " << Mix_GetError() << endl;
+        }
+    }
+}
+
+void cleanupAudio() {
+    for (auto& pair : soundEffects) {
+        Mix_FreeChunk(pair.second);
+    }
+    Mix_CloseAudio();
+    SDL_Quit();
 }
 
 void drawText(const char* text, float x, float y, float z, float r, float g, float b) {
@@ -206,9 +249,9 @@ void drawRoundedRectangle3D(float centerX, float centerY, float centerZ, float w
 }
 
 // Fonction pour dessiner une touche blanche
-void drawWhiteKey(float x,bool isPressed, char label) {
+void drawWhiteKey(float x,bool iskeyPressed, bool ismousepressed,char label) {
     // Charger la texture de la touche blanche (seulement une fois)
-    static GLuint texture = loadTexture("F:\\INFORV\\P1RV\\Piano_simulation\\Piano_simulation\\2.png");
+    static GLuint texture = loadTexture("2.png");
     // Définir les coordonnées de texture (tout l'image est utilisée ici)
     float texCoordWidth = 1.0f;  
     float texCoordHeight =1.0f;  
@@ -241,7 +284,7 @@ void drawWhiteKey(float x,bool isPressed, char label) {
     glPopMatrix();
 
     // Changer la couleur de la touche en fonction de son état (appuyée ou non)
-    if (isPressed) {
+    if (iskeyPressed||ismousepressed) {
         glColor3f(1.0f, 0.7f, 0.4f);
     }
     else {
@@ -263,7 +306,7 @@ void drawWhiteKey(float x,bool isPressed, char label) {
 }
 
 // Fonction pour dessiner une touche noire
-void drawBlackKey(float x, bool isPressed, char label) {
+void drawBlackKey(float x, bool iskeyPressed, bool ismousepressed,char label) {
     glPushMatrix();
     glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.0f);
     // Dessiner l'ombre de la touche noire
@@ -276,7 +319,7 @@ void drawBlackKey(float x, bool isPressed, char label) {
     glPushMatrix();
     glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.5f);
 
-    if (isPressed) {
+    if (iskeyPressed||ismousepressed) {
         glColor3f(1.0f, 0.7f, 0.4f);
     }
     else {
@@ -306,12 +349,12 @@ void drawPiano() {
     float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap; 
 
     for (int i = 0; i < 7; ++i) {
-        drawWhiteKey(whiteKeyX + i *( whiteKeyWidth+gap), keyStatus[whiteKeys[i]],whiteKeys[i]);
+        drawWhiteKey(whiteKeyX + i *( whiteKeyWidth+gap), keyStatus[whiteKeys[i]],mouseStatus[whiteKeys[i]],whiteKeys[i]);
         
     }
     for (int i = 0; i < 5; ++i) {
         float blackKeyX = whiteKeyX + (blackKeyOffsets[i] * totalWhiteKeyWidthWithGap);
-        drawBlackKey(blackKeyX,  keyStatus[blackKeys[i]],blackKeys[i]);
+        drawBlackKey(blackKeyX,  keyStatus[blackKeys[i]], mouseStatus[blackKeys[i]],blackKeys[i]);
     }
 }
 
@@ -328,7 +371,10 @@ void display() {
 
 void keyboardDown(unsigned char key, int x, int y) {
     key = toupper(key);
-    keyStatus[key] = true;  
+    if (keyStatus[key]==false&&soundEffects[key]) {
+        Mix_PlayChannel(-1, soundEffects[key], 0);   // -1 signifie que le premier canal libre est sélectionné pour la lecture
+    } 
+    keyStatus[key] = true;
     glutPostRedisplay();
 }
 
@@ -360,7 +406,11 @@ void mouse(int button, int state, int x, int y) {
             float blackKeyYmin = whiteKeyHeight / 2.0f - blackKeyHeight;
             if (worldX >= blackKeyX && worldX <= blackKeyX + blackKeyWidth &&
                 worldY >= blackKeyYmin && worldY <= blackKeyYmax) {
-                keyStatus[blackKeys[i]] = true;
+                char key = blackKeys[i];
+                if (mouseStatus[key] ==false&& soundEffects[key]) {
+                    Mix_PlayChannel(-1, soundEffects[key], 0);
+                }
+                mouseStatus[key] = true;
                 glutPostRedisplay();
                 return;
             }
@@ -372,14 +422,18 @@ void mouse(int button, int state, int x, int y) {
             float keyEndY = whiteKeyHeight / 2.0f;
             if (worldX >= keyStartX && worldX <= keyEndX &&
                 worldY >= keyStartY && worldY <= keyEndY) {
-                keyStatus[whiteKeys[i]] = true;
+                char key = whiteKeys[i];
+                if (mouseStatus[key] ==false && soundEffects[key]) {
+                    Mix_PlayChannel(-1, soundEffects[key], 0);
+                }
+                mouseStatus[key] = true;
                 glutPostRedisplay();
                 return;
             }
         }
     }
     else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
-        for (auto& status : keyStatus) {
+        for (auto& status : mouseStatus) {
             status.second = false;
         }
         glutPostRedisplay();
@@ -410,12 +464,15 @@ int main(int argc, char** argv) {
     glutCreateWindow("Piano simulation");
     glewInit();
     init();
+    initializeAudio();
+
     glutDisplayFunc(display);
     glutKeyboardFunc(keyboardDown);
     glutKeyboardUpFunc(keyboardUp);
     glutMouseFunc(mouse);
 
     glutMainLoop();
+    cleanupAudio();
     return 0;
 }
 
