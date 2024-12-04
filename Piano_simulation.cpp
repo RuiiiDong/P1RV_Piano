@@ -23,8 +23,9 @@ float blackKeyWidth = 1.4f;    // Largeur des touches noires : 1.4 cm
 float blackKeyHeight = 10.0f; // Longueur des touches noires :10 cm
 float blackKeyDepth = 0.4f;
 float gap = 0.1f;// Espace entre les touches blanches
-char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' };
-char blackKeys[] = { 'W', 'E', 'T', 'Y', 'U' };
+int numOctaves = 2;
+char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M'};
+char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
 // Fonction pour charger une texture à partir d'un fichier image
 GLuint loadTexture(const char* filePath) {
     int width, height, nrChannels;
@@ -70,19 +71,31 @@ void initializeAudio() {
     }
     Mix_AllocateChannels(100);
     // Charger les fichiers audio pour chaque touche
-    soundEffects['A'] = Mix_LoadWAV("sounds/A.wav");
-    soundEffects['S'] = Mix_LoadWAV("sounds/S.wav");
-    soundEffects['D'] = Mix_LoadWAV("sounds/D.wav");
-    soundEffects['F'] = Mix_LoadWAV("sounds/F.wav");
-    soundEffects['G'] = Mix_LoadWAV("sounds/G.wav");
-    soundEffects['H'] = Mix_LoadWAV("sounds/H.wav");
-    soundEffects['J'] = Mix_LoadWAV("sounds/J.wav");
+    soundEffects['A'] = Mix_LoadWAV("sounds/A40.wav");
+    soundEffects['S'] = Mix_LoadWAV("sounds/S42.wav");
+    soundEffects['D'] = Mix_LoadWAV("sounds/D44.wav");
+    soundEffects['F'] = Mix_LoadWAV("sounds/F45.wav");
+    soundEffects['G'] = Mix_LoadWAV("sounds/G47.wav");
+    soundEffects['H'] = Mix_LoadWAV("sounds/H49.wav");
+    soundEffects['J'] = Mix_LoadWAV("sounds/J51.wav");
+    soundEffects['K'] = Mix_LoadWAV("sounds/K52.wav");
+    soundEffects['L'] = Mix_LoadWAV("sounds/L54.wav");
+    soundEffects['C'] = Mix_LoadWAV("sounds/C56.wav");
+    soundEffects['V'] = Mix_LoadWAV("sounds/V57.wav");
+    soundEffects['B'] = Mix_LoadWAV("sounds/B59.wav");
+    soundEffects['N'] = Mix_LoadWAV("sounds/N61.wav");
+    soundEffects['M'] = Mix_LoadWAV("sounds/M63.wav");
 
-    soundEffects['W'] = Mix_LoadWAV("sounds/W.wav");
-    soundEffects['E'] = Mix_LoadWAV("sounds/E.wav");
-    soundEffects['T'] = Mix_LoadWAV("sounds/T.wav");
-    soundEffects['Y'] = Mix_LoadWAV("sounds/Y.wav");
-    soundEffects['U'] = Mix_LoadWAV("sounds/U.wav");
+    soundEffects['Q'] = Mix_LoadWAV("sounds/Q41.wav");
+    soundEffects['W'] = Mix_LoadWAV("sounds/W43.wav");
+    soundEffects['E'] = Mix_LoadWAV("sounds/E46.wav");
+    soundEffects['R'] = Mix_LoadWAV("sounds/R48.wav");
+    soundEffects['T'] = Mix_LoadWAV("sounds/T50.wav");
+    soundEffects['Y'] = Mix_LoadWAV("sounds/Y53.wav");
+    soundEffects['U'] = Mix_LoadWAV("sounds/U55.wav");
+    soundEffects['I'] = Mix_LoadWAV("sounds/I58.wav");
+    soundEffects['O'] = Mix_LoadWAV("sounds/O60.wav");
+    soundEffects['P'] = Mix_LoadWAV("sounds/P62.wav");
 
     // Vérifiez que tous les sons sont chargés
     for (auto& pair : soundEffects) {
@@ -177,7 +190,6 @@ void drawRoundedRectangle3D(float centerX, float centerY, float centerZ, float w
     float yBottom = centerY - height / 2.0f ;
     float yTop = centerY + height / 2.0f;
 
-
     // left
     glBegin(isWireframe ? GL_LINE_LOOP : GL_QUADS);
     glVertex3f(xLeft, yBottom+radius, zBottom);
@@ -200,7 +212,6 @@ void drawRoundedRectangle3D(float centerX, float centerY, float centerZ, float w
     glVertex3f(xRight - radius, yTop, zTop);
     glVertex3f(xRight - radius, yTop, zBottom);
     glEnd();
-     
 
      //bottom
     glBegin(isWireframe ? GL_LINE_LOOP : GL_QUADS);
@@ -343,27 +354,49 @@ void drawBlackKey(float x, bool iskeyPressed, bool ismousepressed,char label) {
 }
 
 // Fonction pour dessiner l'ensemble du piano
-void drawPiano() {
-    float whiteKeyX = -7.2f;
-    float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f }; 
-    float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap; 
+//void draw1octave() {
+//    float whiteKeyX = -7.2f;
+//    float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f }; 
+//    float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap; 
+//
+//    for (int i = 0; i < 7; ++i) {
+//        drawWhiteKey(whiteKeyX + i *( whiteKeyWidth+gap), keyStatus[whiteKeys[i]],mouseStatus[whiteKeys[i]],whiteKeys[i]);
+//        
+//    }
+//    for (int i = 0; i < 5; ++i) {
+//        float blackKeyX = whiteKeyX + (blackKeyOffsets[i] * totalWhiteKeyWidthWithGap);
+//        drawBlackKey(blackKeyX,  keyStatus[blackKeys[i]], mouseStatus[blackKeys[i]],blackKeys[i]);
+//    }
+//}
+// Fonction pour dessiner un clavier complet (plusieurs octaves)
+void drawPiano(float startX, int numOctaves) {
+    float whiteKeyX = startX;  // Position de départ de la première octave
+    float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
+    float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap;
 
-    for (int i = 0; i < 7; ++i) {
-        drawWhiteKey(whiteKeyX + i *( whiteKeyWidth+gap), keyStatus[whiteKeys[i]],mouseStatus[whiteKeys[i]],whiteKeys[i]);
-        
-    }
-    for (int i = 0; i < 5; ++i) {
-        float blackKeyX = whiteKeyX + (blackKeyOffsets[i] * totalWhiteKeyWidthWithGap);
-        drawBlackKey(blackKeyX,  keyStatus[blackKeys[i]], mouseStatus[blackKeys[i]],blackKeys[i]);
+    for (int octave = 0; octave < numOctaves; ++octave) {
+        // Dessiner les touches blanches pour l'octave actuelle
+        for (int i = 0; i < 7; ++i) {
+            drawWhiteKey(whiteKeyX + i * totalWhiteKeyWidthWithGap,keyStatus[whiteKeys[i+octave*7]],
+                mouseStatus[whiteKeys[i+octave*7]],whiteKeys[i+octave*7]);
+        }
+
+        // Dessiner les touches noires pour l'octave actuelle
+        for (int i = 0; i < 5; ++i) {
+            float blackKeyX = whiteKeyX + (blackKeyOffsets[i] * totalWhiteKeyWidthWithGap);
+            drawBlackKey(blackKeyX,keyStatus[blackKeys[i+octave*5]],mouseStatus[blackKeys[i+octave*5]], blackKeys[i+octave*5]);
+        }
+
+        // Passer à la prochaine octave
+        whiteKeyX += 7 * totalWhiteKeyWidthWithGap;
     }
 }
-
 // Fonction pour afficher la scène dans la fenêtre
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glLoadIdentity();
     gluLookAt(0.0,0.0, 20.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-    drawPiano();
+    drawPiano(-16.0f,numOctaves);
    //drawRoundedRectangle3D(0, 0, 0, blackKeyWidth, blackKeyHeight, 2.0, 0.2,0);
     //drawRoundedRectangle(0, 0, 0, blackKeyWidth, blackKeyHeight, 0.2, 0);
     glutSwapBuffers();
@@ -397,39 +430,42 @@ void mouse(int button, int state, int x, int y) {
         //viewport[3]  height of  window
         gluUnProject(x, viewport[3] - y, 0, modelview, projection, viewport, &worldX, &worldY, &worldZ);
 
-        float whiteKeyX = -7.2f;
+        float whiteKeyX = -16.0f;
         float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
         float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap;
-        for (int i = 0; i < 5; ++i) {
-            float blackKeyX = whiteKeyX + blackKeyOffsets[i] * totalWhiteKeyWidthWithGap - blackKeyWidth / 2.0f;
-            float blackKeyYmax = whiteKeyHeight / 2.0f;
-            float blackKeyYmin = whiteKeyHeight / 2.0f - blackKeyHeight;
-            if (worldX >= blackKeyX && worldX <= blackKeyX + blackKeyWidth &&
-                worldY >= blackKeyYmin && worldY <= blackKeyYmax) {
-                char key = blackKeys[i];
-                if (mouseStatus[key] ==false&& soundEffects[key]) {
-                    Mix_PlayChannel(-1, soundEffects[key], 0);
+        for (int octave = 0;octave < numOctaves;octave++) {
+            for (int i = 0; i < 5; ++i) {
+                float blackKeyX = whiteKeyX + blackKeyOffsets[i] * totalWhiteKeyWidthWithGap - blackKeyWidth / 2.0f;
+                float blackKeyYmax = whiteKeyHeight / 2.0f;
+                float blackKeyYmin = whiteKeyHeight / 2.0f - blackKeyHeight;
+                if (worldX >= blackKeyX && worldX <= blackKeyX + blackKeyWidth &&
+                    worldY >= blackKeyYmin && worldY <= blackKeyYmax) {
+                    char key = blackKeys[i+octave*5];
+                    if (mouseStatus[key] == false && soundEffects[key]) {
+                        Mix_PlayChannel(-1, soundEffects[key], 0);
+                    }
+                    mouseStatus[key] = true;
+                    glutPostRedisplay();
+                    return;
                 }
-                mouseStatus[key] = true;
-                glutPostRedisplay();
-                return;
             }
-        }
-        for (int i = 0; i < 7; ++i) {
-            float keyStartX = whiteKeyX + i * (whiteKeyWidth + gap) - whiteKeyWidth / 2.0f;
-            float keyEndX = keyStartX + whiteKeyWidth;
-            float keyStartY = -whiteKeyHeight / 2.0f;
-            float keyEndY = whiteKeyHeight / 2.0f;
-            if (worldX >= keyStartX && worldX <= keyEndX &&
-                worldY >= keyStartY && worldY <= keyEndY) {
-                char key = whiteKeys[i];
-                if (mouseStatus[key] ==false && soundEffects[key]) {
-                    Mix_PlayChannel(-1, soundEffects[key], 0);
+            for (int i = 0; i < 7; ++i) {
+                float keyStartX = whiteKeyX + i * (whiteKeyWidth + gap) - whiteKeyWidth / 2.0f;
+                float keyEndX = keyStartX + whiteKeyWidth;
+                float keyStartY = -whiteKeyHeight / 2.0f;
+                float keyEndY = whiteKeyHeight / 2.0f;
+                if (worldX >= keyStartX && worldX <= keyEndX &&
+                    worldY >= keyStartY && worldY <= keyEndY) {
+                    char key = whiteKeys[i+octave*7];
+                    if (mouseStatus[key] == false && soundEffects[key]) {
+                        Mix_PlayChannel(-1, soundEffects[key], 0);
+                    }
+                    mouseStatus[key] = true;
+                    glutPostRedisplay();
+                    return;
                 }
-                mouseStatus[key] = true;
-                glutPostRedisplay();
-                return;
             }
+            whiteKeyX += 7 * totalWhiteKeyWidthWithGap;
         }
     }
     else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP) {
@@ -455,8 +491,9 @@ void init() {
 }
 
 int main(int argc, char** argv) {
-    for (char key : {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'W', 'E', 'T', 'Y', 'U'}) {
+    for (char key : { 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'C', 'V', 'B', 'N', 'M', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'}) {
         keyStatus[key] = false;
+        mouseStatus[key] = false;
     }
     
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
