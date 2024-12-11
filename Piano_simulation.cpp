@@ -24,6 +24,7 @@ float blackKeyHeight = 10.0f; // Longueur des touches noires :10 cm
 float blackKeyDepth = 0.4f;
 float gap = 0.1f;// Espace entre les touches blanches
 int numOctaves = 2;
+bool isOrtho = true;
 char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M'};
 char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
 // Fonction pour charger une texture à partir d'un fichier image
@@ -259,6 +260,17 @@ void drawRoundedRectangle3D(float centerX, float centerY, float centerZ, float w
     }
 }
 
+void setProjection() {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    if (isOrtho) {
+        glOrtho(-20, 20, -15, 15, 1.0, 200.0);
+    }
+    else {
+        gluPerspective(60.0, 4.0 / 3.0, 1.0, 200.0);
+    }
+    glMatrixMode(GL_MODELVIEW);
+}
 // Fonction pour dessiner une touche blanche
 void drawWhiteKey(float x,bool iskeyPressed, bool ismousepressed,char label) {
     // Charger la texture de la touche blanche (seulement une fois)
@@ -307,9 +319,15 @@ void drawWhiteKey(float x,bool iskeyPressed, bool ismousepressed,char label) {
     // Dessiner le contour de la touche avec une couleur grise et une épaisseur de ligne plus grande
     glPushMatrix();
     glTranslatef(x, 0.0f, 0.0f);
-    glColor3f(0.4f, 0.4f, 0.4f);
+    glColor3f(0.5f, 0.5f, 0.5f);
     glLineWidth(3.0f);  // Définir l'épaisseur des lignes pour le bord
-    drawRoundedRectangle(0.0, 0.0, 0.0f, whiteKeyWidth, whiteKeyHeight, 0.2f, 1);
+    if (isOrtho) {
+        drawRoundedRectangle(0.0, 0.0, 0.0f, whiteKeyWidth, whiteKeyHeight, 0.2f, 1);
+    }
+    else {
+        drawRoundedRectangle(0.0, 0.0,0.2f, whiteKeyWidth, whiteKeyHeight,0.2f, 1);
+    }
+   
 
     glPopMatrix();
 
@@ -336,7 +354,7 @@ void drawBlackKey(float x, bool iskeyPressed, bool ismousepressed,char label) {
     else {
         glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
     }
-    drawRoundedRectangle3D(0.0, 0.0,0.8f, blackKeyWidth, blackKeyHeight,blackKeyDepth, 0.15f, 0);
+    drawRoundedRectangle3D(0.0, 0.0,0.4f, blackKeyWidth, blackKeyHeight,blackKeyDepth, 0.15f, 0);
     glPopMatrix();
 
     // Dessiner le contour de la touche noire pour créer un effet visuel
@@ -347,14 +365,13 @@ void drawBlackKey(float x, bool iskeyPressed, bool ismousepressed,char label) {
     glLineWidth(2.0f);  // Définir l'épaisseur des lignes pour le contour
     float scale = 1.005f;
     glScalef(scale, scale, scale);
-    drawRoundedRectangle(0.0, 0.0, 0.5f, blackKeyWidth, blackKeyHeight, 0.2f, 1);
+    drawRoundedRectangle(0.0, 0.0, 0.2f, blackKeyWidth, blackKeyHeight, 0.2f, 1);
 
     glPopMatrix();
     drawText(string(1, label).c_str(), x - 0.15f, -0.8f, 2.0f, 1.0f, 1.0f, 1.0f);
 }
 
-// Fonction pour dessiner l'ensemble du piano
-//void draw1octave() {
+//void draw_1_octave() {
 //    float whiteKeyX = -7.2f;
 //    float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f }; 
 //    float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap; 
@@ -391,25 +408,6 @@ void drawPiano(float startX, int numOctaves) {
         whiteKeyX += 7 * totalWhiteKeyWidthWithGap;
     }
 }
-// Fonction pour afficher la scène dans la fenêtre
-void display() {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glLoadIdentity();
-    gluLookAt(0.0,0.0, 20.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-    drawPiano(-16.0f,numOctaves);
-   //drawRoundedRectangle3D(0, 0, 0, blackKeyWidth, blackKeyHeight, 2.0, 0.2,0);
-    //drawRoundedRectangle(0, 0, 0, blackKeyWidth, blackKeyHeight, 0.2, 0);
-    glutSwapBuffers();
-}
-
-void keyboardDown(unsigned char key, int x, int y) {
-    key = toupper(key);
-    if (keyStatus[key]==false&&soundEffects[key]) {
-        Mix_PlayChannel(-1, soundEffects[key], 0);   // -1 signifie que le premier canal libre est sélectionné pour la lecture
-    } 
-    keyStatus[key] = true;
-    glutPostRedisplay();
-}
 
 void keyboardUp(unsigned char key, int x, int y) {
     key = toupper(key);
@@ -423,12 +421,19 @@ void mouse(int button, int state, int x, int y) {
         GLdouble projection[16];
         GLint viewport[4];
         GLdouble worldX, worldY, worldZ;
+        GLfloat zBufferValue;
 
         glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
         glGetDoublev(GL_PROJECTION_MATRIX, projection);
         glGetIntegerv(GL_VIEWPORT, viewport);
         //viewport[3]  height of  window
         gluUnProject(x, viewport[3] - y, 0, modelview, projection, viewport, &worldX, &worldY, &worldZ);
+        if (!isOrtho) {
+            worldX *= 24;
+            worldY = worldY * (24.8)+24;
+        }
+        std::cout << "Mouse: (" << x << ", " << y << "\n";
+        std::cout << "World Coordinates: (" << worldX << ", " << worldY << ", " << worldZ << ")\n";
 
         float whiteKeyX = -16.0f;
         float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
@@ -476,6 +481,39 @@ void mouse(int button, int state, int x, int y) {
     }
 }
 
+
+void keyboardDown(unsigned char key, int x, int y) {
+    if (key == 32) { //space
+        isOrtho = !isOrtho;
+        setProjection();
+        glutPostRedisplay();
+    }
+    else {
+        key = toupper(key);
+        if (keyStatus[key] == false && soundEffects[key]) {
+            Mix_PlayChannel(-1, soundEffects[key], 0);   // -1 signifie que le premier canal libre est sélectionné pour la lecture
+        }
+        keyStatus[key] = true;
+        glutPostRedisplay();
+    }
+
+}
+
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glLoadIdentity();
+    if (isOrtho) {
+        gluLookAt(0.0, 0.0, 20.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+    }
+    else {
+        gluLookAt(0.0, -1.0,25.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+    }
+
+    drawPiano(-16.0f, numOctaves);
+    //drawRoundedRectangle3D(0, 0, 0, blackKeyWidth, blackKeyHeight, 2.0, 0.2,0);
+     //drawRoundedRectangle(0, 0, 0, blackKeyWidth, blackKeyHeight, 0.2, 0);
+    glutSwapBuffers();
+}
 // Fonction d'initialisation
 void init() {
     glEnable(GL_DEPTH_TEST);  
@@ -483,11 +521,7 @@ void init() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);  
 
     glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
-    glMatrixMode(GL_PROJECTION);
-   
-    // Définir les limites du système de coordonnées en projection orthographique
-    glOrtho(-20, 20, -15, 15, 1.0, 200.0);
-    glMatrixMode(GL_MODELVIEW);
+    setProjection();
 }
 
 int main(int argc, char** argv) {
