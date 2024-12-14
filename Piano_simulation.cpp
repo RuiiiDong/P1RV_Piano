@@ -5,7 +5,11 @@
 #include <GL/gl.h>
 #include <GLUT.h>
 #include<map>
+#include<vector>
 #include <string>
+#include <cmath>
+#include <cstdlib>
+#include <ctime>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include<SDL.h>
@@ -25,8 +29,32 @@ float blackKeyDepth = 0.4f;
 float gap = 0.1f;// Espace entre les touches blanches
 int numOctaves = 2;
 bool isOrtho = true;
+bool isDrop = false;
 char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M'};
 char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
+
+struct FallingRectangle{
+    float x, y, z;
+    float width, height;
+    char associatedKey; 
+    bool isActive;   
+};
+vector<FallingRectangle> rectangles;
+
+struct KeyMapping {
+    float xPosition;    
+    char associatedKey; 
+};
+
+vector<KeyMapping> whiteKeys_position = {
+    {-16.0f, 'A'}, {-13.5f, 'S'}, {-11.0f, 'D'}, {-8.5f, 'F'}, {-6.0f, 'G'},{-3.5f, 'H'}, {-1.0f, 'J'}, 
+    {1.5f, 'K'}, {4.0f, 'L'}, {6.5f, 'C'}, {9.0f, 'V'},{11.5f, 'B'},{14.0f, 'N'},{16.5f,'M'}
+};
+vector<KeyMapping> blackKeys_position = {
+    {-14.8f, 'Q'}, {-12.3f, 'W'}, {-7.3f, 'E'}, {-4.8f, 'R'}, {-2.3f, 'T'}, 
+    {3.0f, 'Y'},{5.2f, 'U'},{10.2f, 'I'},{12.7f, 'O'},{15.2f, 'P'}
+};
+
 // Fonction pour charger une texture à partir d'un fichier image
 GLuint loadTexture(const char* filePath) {
     int width, height, nrChannels;
@@ -421,7 +449,6 @@ void mouse(int button, int state, int x, int y) {
         GLdouble projection[16];
         GLint viewport[4];
         GLdouble worldX, worldY, worldZ;
-        GLfloat zBufferValue;
 
         glGetDoublev(GL_MODELVIEW_MATRIX, modelview);
         glGetDoublev(GL_PROJECTION_MATRIX, projection);
@@ -432,8 +459,8 @@ void mouse(int button, int state, int x, int y) {
             worldX *= 24;
             worldY = worldY * (24.8)+24;
         }
-        std::cout << "Mouse: (" << x << ", " << y << "\n";
-        std::cout << "World Coordinates: (" << worldX << ", " << worldY << ", " << worldZ << ")\n";
+        //cout << "Mouse: (" << x << ", " << y << "\n";
+        //cout << "World Coordinates: (" << worldX << ", " << worldY << ", " << worldZ << ")\n";
 
         float whiteKeyX = -16.0f;
         float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
@@ -481,12 +508,56 @@ void mouse(int button, int state, int x, int y) {
     }
 }
 
+void spawnRectangle(bool isWhiteKey) {
+    FallingRectangle rect;
 
+    if (isWhiteKey) {
+        int index = rand() % whiteKeys_position.size();
+        rect.x = whiteKeys_position[index].xPosition;
+        rect.associatedKey = whiteKeys_position[index].associatedKey;
+    }
+    else {
+        int index = rand() % blackKeys_position.size();
+        rect.x = blackKeys_position[index].xPosition;
+        rect.associatedKey = blackKeys_position[index].associatedKey;
+    }
+
+    rect.y = 20.0f;       
+    rect.z = 2.0f;    
+    rect.width = isWhiteKey ? 2.4f : 1.4f;  
+    rect.height = 2.0f;   
+    rect.isActive = true;
+
+    rectangles.push_back(rect);
+}
+
+void timerFunc(int value) {
+    if (rand() % 10 < 7) { 
+        spawnRectangle(true);
+    }
+    else { 
+        spawnRectangle(false);
+    }
+    glutTimerFunc(1000, timerFunc, 0); 
+}
+
+void checkRectangleHit(char key) {
+    for (auto& rect : rectangles) {
+        if (rect.associatedKey == key && rect.isActive) {
+            rect.isActive = false; 
+            break; 
+        }
+    }
+}
 void keyboardDown(unsigned char key, int x, int y) {
     if (key == 32) { //space
         isOrtho = !isOrtho;
         setProjection();
         glutPostRedisplay();
+    }
+    if (key == '0') {
+        isDrop = !isDrop;
+        rectangles.clear();
     }
     else {
         key = toupper(key);
@@ -496,7 +567,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         keyStatus[key] = true;
         glutPostRedisplay();
     }
-
+    checkRectangleHit(key);
 }
 
 void display() {
@@ -510,9 +581,33 @@ void display() {
     }
 
     drawPiano(-16.0f, numOctaves);
-    //drawRoundedRectangle3D(0, 0, 0, blackKeyWidth, blackKeyHeight, 2.0, 0.2,0);
-     //drawRoundedRectangle(0, 0, 0, blackKeyWidth, blackKeyHeight, 0.2, 0);
+    if (isDrop) {
+        for (auto& rect : rectangles) {
+            if (rect.isActive) {
+                glColor3f(0.6f, 0.8f, 0.9f);
+                glBegin(GL_QUADS);
+                glVertex3f(rect.x - rect.width / 2, rect.y, rect.z);
+                glVertex3f(rect.x + rect.width / 2, rect.y, rect.z);
+                glVertex3f(rect.x + rect.width / 2, rect.y + rect.height, rect.z);
+                glVertex3f(rect.x - rect.width / 2, rect.y + rect.height, rect.z);
+                glEnd();
+            }
+        }
+    }
     glutSwapBuffers();
+}
+void update(int value) {
+    for (auto& rect : rectangles) {
+        if (rect.isActive) {
+            rect.y -= 0.05f; 
+            if (rect.y < -15.0f) {
+                rect.isActive = false;
+            }
+        }
+    }
+
+    glutPostRedisplay();
+    glutTimerFunc(16, update, 0); 
 }
 // Fonction d'initialisation
 void init() {
@@ -541,6 +636,8 @@ int main(int argc, char** argv) {
     glutKeyboardFunc(keyboardDown);
     glutKeyboardUpFunc(keyboardUp);
     glutMouseFunc(mouse);
+    glutTimerFunc(16, update, 0); 
+    glutTimerFunc(1000, timerFunc, 0); 
 
     glutMainLoop();
     cleanupAudio();
