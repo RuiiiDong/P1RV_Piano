@@ -477,6 +477,14 @@ void mouse(int button, int state, int x, int y) {
                         Mix_PlayChannel(-1, soundEffects[key], 0);
                     }
                     mouseStatus[key] = true;
+                    if(isDrop){
+                        for (auto& rect : rectangles) {
+                        if (rect.associatedKey == key && rect.isActive) {
+                            rect.isActive = false;
+                            break;
+                        }
+                        }
+                    }
                     glutPostRedisplay();
                     return;
                 }
@@ -493,6 +501,14 @@ void mouse(int button, int state, int x, int y) {
                         Mix_PlayChannel(-1, soundEffects[key], 0);
                     }
                     mouseStatus[key] = true;
+                    if (isDrop) {
+                        for (auto& rect : rectangles) {
+                            if (rect.associatedKey == key && rect.isActive) {
+                                rect.isActive = false;
+                                break;
+                            }
+                        }
+                    }
                     glutPostRedisplay();
                     return;
                 }
@@ -596,6 +612,7 @@ void display() {
     }
     glutSwapBuffers();
 }
+
 void update(int value) {
     for (auto& rect : rectangles) {
         if (rect.isActive) {
