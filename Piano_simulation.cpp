@@ -2,6 +2,8 @@
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <GL/gl.h>
 #include <GLUT.h>
 #include<map>
@@ -10,6 +12,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
+#include<random>
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include<SDL.h>
@@ -30,6 +33,7 @@ float gap = 0.1f;// Espace entre les touches blanches
 int numOctaves = 2;
 bool isOrtho = true;
 bool isDrop = false;
+float startTime = 0.0f;
 char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M'};
 char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
 
@@ -55,6 +59,27 @@ vector<KeyMapping> blackKeys_position = {
     {3.0f, 'Y'},{5.2f, 'U'},{10.2f, 'I'},{12.7f, 'O'},{15.2f, 'P'}
 };
 
+vector<pair<char, float>> loadSheetMusicFromFile(const string& filename) {
+    vector<pair<char, float>> sheetMusic;
+
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Can't open file" << filename << endl;
+        return sheetMusic;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        istringstream iss(line);
+        char key;
+        float time;
+        if (iss >> key >> time) { 
+            sheetMusic.push_back({ key, time });
+        }
+    }
+
+    return sheetMusic;
+}
 // Fonction pour charger une texture à partir d'un fichier image
 GLuint loadTexture(const char* filePath) {
     int width, height, nrChannels;
@@ -524,38 +549,47 @@ void mouse(int button, int state, int x, int y) {
     }
 }
 
-void spawnRectangle(bool isWhiteKey) {
+void spawnRectangle(bool isWhiteKey,char associatedKey) {
     FallingRectangle rect;
-
     if (isWhiteKey) {
-        int index = rand() % whiteKeys_position.size();
-        rect.x = whiteKeys_position[index].xPosition;
-        rect.associatedKey = whiteKeys_position[index].associatedKey;
+        // Find the corresponding position according to the key
+        auto it = find_if(whiteKeys_position.begin(), whiteKeys_position.end(),
+            [associatedKey](const KeyMapping& km) { return km.associatedKey == associatedKey; });
+        if (it != whiteKeys_position.end()) {
+            rect.x = it->xPosition;
+            rect.associatedKey = associatedKey;
+        }
     }
     else {
-        int index = rand() % blackKeys_position.size();
-        rect.x = blackKeys_position[index].xPosition;
-        rect.associatedKey = blackKeys_position[index].associatedKey;
+        auto it = find_if(blackKeys_position.begin(), blackKeys_position.end(),
+            [associatedKey](const KeyMapping& km) { return km.associatedKey == associatedKey; });
+        if (it != blackKeys_position.end()) {
+            rect.x = it->xPosition;
+            rect.associatedKey = associatedKey;
+        }
     }
-
     rect.y = 20.0f;       
     rect.z = 2.0f;    
     rect.width = isWhiteKey ? 2.4f : 1.4f;  
-    rect.height = 2.0f;   
+    rect.height =1.5f;   
     rect.isActive = true;
 
     rectangles.push_back(rect);
 }
 
-void timerFunc(int value) {
-    if (rand() % 10 < 7) { 
-        spawnRectangle(true);
-    }
-    else { 
-        spawnRectangle(false);
-    }
-    glutTimerFunc(1000, timerFunc, 0); 
-}
+//void timerFunc(int value) {
+//    if (rand() % 10 < 7) { 
+//        spawnRectangle(true);
+//    }
+//    else { 
+//        spawnRectangle(false);
+//    }
+//    random_device rd; 
+//    mt19937 gen(rd()); 
+//    uniform_int_distribution<int> dis(500, 1500); 
+//    int nextInterval = dis(gen);
+//    glutTimerFunc(nextInterval, timerFunc, 0);
+//}
 
 void checkRectangleHit(char key) {
     for (auto& rect : rectangles) {
@@ -565,23 +599,46 @@ void checkRectangleHit(char key) {
         }
     }
 }
+
+vector<pair<char, float>> sheetMusic;
 void keyboardDown(unsigned char key, int x, int y) {
-    if (key == 32) { //space
+    switch (key) {
+    case '1': 
+        sheetMusic = loadSheetMusicFromFile("Notes/ode_to_joy.txt");
+        isDrop = !isDrop;
+        startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f; 
+        rectangles.clear(); 
+        cout << "Current track:《Ode to Joy》 isDrop:"<<isDrop << endl;
+        break;
+
+    case '2': 
+        sheetMusic = loadSheetMusicFromFile("Notes/twinkle_twinkle.txt");
+        isDrop = !isDrop;
+        startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f; 
+        rectangles.clear(); 
+        cout << "Current track:《Twinkle twinkle》 isDrop:" << isDrop << endl;
+        break;
+
+    case '3': 
+        sheetMusic = loadSheetMusicFromFile("Notes/happy_birthday.txt");
+        isDrop = !isDrop;
+        startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f; 
+        rectangles.clear(); 
+        cout << "Current track:《Happy birthday》 isDrop:" << isDrop << endl;
+        break;
+    case' ':
         isOrtho = !isOrtho;
         setProjection();
         glutPostRedisplay();
-    }
-    if (key == '0') {
-        isDrop = !isDrop;
-        rectangles.clear();
-    }
-    else {
+        break;
+    default:
         key = toupper(key);
         if (keyStatus[key] == false && soundEffects[key]) {
-            Mix_PlayChannel(-1, soundEffects[key], 0);   // -1 signifie que le premier canal libre est sélectionné pour la lecture
+            Mix_PlayChannel(-1, soundEffects[key], 0);// -1 signifie que le premier canal libre est sélectionné pour la lecture
         }
         keyStatus[key] = true;
         glutPostRedisplay();
+        break;
     }
     checkRectangleHit(key);
 }
@@ -614,17 +671,30 @@ void display() {
 }
 
 void update(int value) {
-    for (auto& rect : rectangles) {
-        if (rect.isActive) {
-            rect.y -= 0.05f; 
-            if (rect.y < -15.0f) {
-                rect.isActive = false;
+    if (isDrop) { 
+        float currentTime = (glutGet(GLUT_ELAPSED_TIME) / 1000.0f) - startTime;
+
+        // Iterate over the score to generate rectangles
+        while (!sheetMusic.empty() && sheetMusic.front().second <= currentTime) {
+            char key = sheetMusic.front().first;
+            bool isWhiteKey = find(begin(whiteKeys), end(whiteKeys), key) != end(whiteKeys);
+            spawnRectangle(isWhiteKey, key);
+            sheetMusic.erase(sheetMusic.begin()); 
+        }
+
+        for (auto& rect : rectangles) {
+            if (rect.isActive) {
+                rect.y -= 0.05f; // Rectangular descent speed
+                if (rect.y < -15.0f) {
+                    rect.isActive = false; // Rectangle disappears when out of range
+                }
             }
         }
+
+        glutPostRedisplay();
     }
 
-    glutPostRedisplay();
-    glutTimerFunc(16, update, 0); 
+    glutTimerFunc(16, update, 0); // Updated every 16ms
 }
 // Fonction d'initialisation
 void init() {
@@ -641,7 +711,7 @@ int main(int argc, char** argv) {
         keyStatus[key] = false;
         mouseStatus[key] = false;
     }
-    
+
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
     glutInitWindowSize(800, 600);
     glutCreateWindow("Piano simulation");
@@ -654,7 +724,7 @@ int main(int argc, char** argv) {
     glutKeyboardUpFunc(keyboardUp);
     glutMouseFunc(mouse);
     glutTimerFunc(16, update, 0); 
-    glutTimerFunc(1000, timerFunc, 0); 
+    //glutTimerFunc(1000, timerFunc, 0); 
 
     glutMainLoop();
     cleanupAudio();
