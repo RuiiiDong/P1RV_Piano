@@ -883,7 +883,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         isDrop = !isDrop;
         startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
         rectangles.clear();
-        cout << "Current track:《Ode to Joy》 isDrop:" << isDrop << endl;
+        cout << "Current track:Ode to Joy isDrop:" << isDrop << endl;
         break;
 
     case '2':
@@ -891,7 +891,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         isDrop = !isDrop;
         startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
         rectangles.clear();
-        cout << "Current track:《Twinkle twinkle》 isDrop:" << isDrop << endl;
+        cout << "Current track:Twinkle twinkle isDrop:" << isDrop << endl;
         break;
 
     case '3':
@@ -899,7 +899,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         isDrop = !isDrop;
         startTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
         rectangles.clear();
-        cout << "Current track:《Happy birthday》 isDrop:" << isDrop << endl;
+        cout << "Current track:Happy birthday isDrop:" << isDrop << endl;
         break;
     case' ':
         isOrtho = !isOrtho;
