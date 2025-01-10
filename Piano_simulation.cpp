@@ -22,13 +22,17 @@
 
 
 
+
 using namespace std;
 GLuint whiteKeyTexture;
 GLuint blackKeyTexture;
+GLuint texture;
+
 int currentSkin = 0;
 map<char, bool> keyStatus;
 map<char, bool>mouseStatus;
 map<char, Mix_Chunk*> soundEffects;
+
 // Définition des dimensions des touches du piano
 float whiteKeyWidth = 2.4f; // Largeur des touches blanches : 2.4 cm
 float whiteKeyHeight = 15.0f;  // Longueur des touches blanches : 15 cm
@@ -43,6 +47,34 @@ bool isDrop = false;
 float startTime = 0.0f;
 char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M' };
 char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
+map<char, tuple<float, float, float>> keyColors = {
+    {'A', {0.96f, 0.26f, 0.21f}},
+    {'S', {0.30f, 0.69f, 0.31f}},
+    {'D', {0.13f, 0.59f, 0.95f}},
+    {'F', {1.00f, 0.92f, 0.23f}},
+    {'G', {0.61f, 0.15f, 0.69f}},
+    {'H', {0.00f, 0.73f, 0.83f}},
+    {'J', {0.85f, 0.33f, 0.10f}},
+    {'K', {0.40f, 0.76f, 0.64f}},
+    {'L', {0.25f, 0.32f, 0.71f}},
+    {'C', {1.00f, 0.55f, 0.00f}},
+    {'V', {0.64f, 0.16f, 0.16f}},
+    {'B', {0.12f, 0.73f, 0.56f}},
+    {'N', {0.46f, 0.53f, 0.60f}},
+    {'M', {0.91f, 0.76f, 0.65f}},
+    {'Q', {0.89f, 0.22f, 0.21f}},
+    {'W', {0.80f, 0.60f, 0.20f}},
+    {'E', {0.18f, 0.80f, 0.44f}},
+    {'R', {0.25f, 0.88f, 0.82f}},
+    {'T', {0.40f, 0.22f, 0.71f}},
+    {'Y', {0.71f, 0.53f, 0.35f}},
+    {'U', {0.56f, 0.64f, 0.85f}},
+    {'I', {0.95f, 0.77f, 0.06f}},
+    {'O', {0.74f, 0.20f, 0.64f}},
+    {'P', {0.99f, 0.68f, 0.13f}}
+};
+
+
 
 struct FallingRectangle {
     float x, y, z;
@@ -179,7 +211,10 @@ void drawText(const char* text, float x, float y, float z, float r, float g, flo
     glRasterPos3f(x, y, z);
     for (const char* c = text; *c != '\0'; ++c) {
         // Afficher le caractère courant avec la police spécifiée (Helvetica, taille 18)
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c);
+        if (currentSkin == 0) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c); }
+        else {
+            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, *c);
+        }
     }
 }
 
@@ -334,7 +369,7 @@ void setProjection() {
 // Fonction pour dessiner une touche blanche avec le skin 1
 void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) {
     // Charger la texture de la touche blanche (seulement une fois)
-    static GLuint texture = loadTexture("2.png");
+
     // Définir les coordonnées de texture (tout l'image est utilisée ici)
     float texCoordWidth = 1.0f;
     float texCoordHeight = 1.0f;
@@ -651,6 +686,39 @@ void mouse(int button, int state, int x, int y) {
         glutPostRedisplay();
     }
 }
+void drawFallingRectangle(const FallingRectangle& rect) {
+    glPushMatrix();
+    glTranslatef(rect.x, rect.y, rect.z);
+
+    // Définir une nouvelle couleur harmonieuse en fonction de la touche
+    auto color = keyColors[rect.associatedKey];
+    float r = get<0>(color);
+    float g = get<1>(color);
+    float b = get<2>(color);
+
+    // Appliquer une légère variation pour les rendre plus esthétiques
+    glColor3f(r * 0.9f + 0.1f, g * 0.9f + 0.1f, b * 0.9f + 0.1f);
+
+    // Dessiner le rectangle arrondi
+    drawRoundedRectangle3D(
+        0.0f,
+        0.0f,
+        0.0f,
+        rect.width,
+        rect.height,
+        0.2f,
+        0.2f,
+        false
+    );
+
+    // Dessiner l'étiquette de la touche sur le rectangle
+    glColor3f(0.0f, 0.0f, 0.0f); // Texte noir
+    drawText(string(1, rect.associatedKey).c_str(), 0.0f, -rect.height / 4.0f, rect.z + 0.2f, 0.0f, 0.0f, 0.0f);
+
+    glPopMatrix();
+}
+
+
 
 void spawnRectangle(bool isWhiteKey, char associatedKey) {
     FallingRectangle rect;
@@ -704,6 +772,15 @@ void checkRectangleHit(char key) {
 }
 
 vector<pair<char, float>> sheetMusic;
+void resetKeyStates() {
+    for (auto& status : keyStatus) {
+        status.second = false;
+    }
+    for (auto& status : mouseStatus) {
+        status.second = false;
+    }
+}
+
 void keyboardDown(unsigned char key, int x, int y) {
     switch (key) {
     case '1':
@@ -734,10 +811,12 @@ void keyboardDown(unsigned char key, int x, int y) {
         setProjection();
         glutPostRedisplay();
         break;
-    case '7' :
+    case '7':
+
         if (currentSkin == 0) { currentSkin = 1; }
         else { currentSkin = 0; }
         glutPostRedisplay();
+
         break;
 
     default:
@@ -766,14 +845,10 @@ void display() {
     if (isDrop) {
         for (auto& rect : rectangles) {
             if (rect.isActive) {
-                glColor3f(0.6f, 0.8f, 0.9f);
-                glBegin(GL_QUADS);
-                glVertex3f(rect.x - rect.width / 2, rect.y, rect.z);
-                glVertex3f(rect.x + rect.width / 2, rect.y, rect.z);
-                glVertex3f(rect.x + rect.width / 2, rect.y + rect.height, rect.z);
-                glVertex3f(rect.x - rect.width / 2, rect.y + rect.height, rect.z);
-                glEnd();
+                drawFallingRectangle(rect);
             }
+
+
         }
     }
     glutSwapBuffers();
@@ -823,6 +898,10 @@ void init() {
     blackKeyTexture = loadTexture("black.jpg");
     if (blackKeyTexture == 0) {
         std::cerr << "Failed to load black.jpg texture!" << std::endl;
+    }
+    texture = loadTexture("2.png");
+    if (texture == 0) {
+        std::cerr << "Failed to load 2.png texture!" << std::endl;
     }
 }
 
