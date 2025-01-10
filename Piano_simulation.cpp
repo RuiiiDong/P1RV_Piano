@@ -272,10 +272,8 @@ void drawText(const char* text, float x, float y, float z, float r, float g, flo
     glRasterPos3f(x, y, z);
     for (const char* c = text; *c != '\0'; ++c) {
         // Afficher le caractère courant avec la police spécifiée (Helvetica, taille 18)
-        if (currentSkin == 0) { glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c); }
-        else {
-            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, *c);
-        }
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *c); 
+        
     }
 }
 
