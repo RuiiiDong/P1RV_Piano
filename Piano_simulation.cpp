@@ -4,7 +4,7 @@
 #include <sstream>
 #define GLEW_STATIC
 #include <GL/glew.h>
-#include <GL/glut.h>
+#include <GLUT.h>
 #include <GL/GLU.h>
 #include <gl/GL.h>
 #include <map>
@@ -19,23 +19,18 @@
 #include <SDL.h>
 #include <SDL_mixer.h>
 
-
-
-
-
 using namespace std;
 GLuint whiteKeyTexture;
 GLuint blackKeyTexture;
 GLuint texture;
 
-int currentSkin = 0;
+
 map<char, bool> keyStatus;
 map<char, bool>mouseStatus;
 map<char, Mix_Chunk*> soundEffects;
 //variables liés au recording
-std::vector<Uint8> audioBuffer; // Buffer to store audio data
+vector<Uint8> audioBuffer; // Buffer to store audio data
 bool isRecording = false;      // Recording state
-
 
 // Définition des dimensions des touches du piano
 float whiteKeyWidth = 2.4f; // Largeur des touches blanches : 2.4 cm
@@ -48,7 +43,9 @@ float gap = 0.1f;// Espace entre les touches blanches
 int numOctaves = 2;
 bool isOrtho = true;
 bool isDrop = false;
+int currentSkin = 0;
 float startTime = 0.0f;
+int recordnum = 0;
 char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M' };
 char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
 map<char, tuple<float, float, float>> keyColors = {
@@ -78,8 +75,6 @@ map<char, tuple<float, float, float>> keyColors = {
     {'P', {0.99f, 0.68f, 0.13f}}
 };
 
-
-
 struct FallingRectangle {
     float x, y, z;
     float width, height;
@@ -92,7 +87,6 @@ struct KeyMapping {
     float xPosition;
     char associatedKey;
 };
-
 vector<KeyMapping> whiteKeys_position = {
     {-16.0f, 'A'}, {-13.5f, 'S'}, {-11.0f, 'D'}, {-8.5f, 'F'}, {-6.0f, 'G'},{-3.5f, 'H'}, {-1.0f, 'J'},
     {1.5f, 'K'}, {4.0f, 'L'}, {6.5f, 'C'}, {9.0f, 'V'},{11.5f, 'B'},{14.0f, 'N'},{16.5f,'M'}
@@ -101,6 +95,7 @@ vector<KeyMapping> blackKeys_position = {
     {-14.8f, 'Q'}, {-12.3f, 'W'}, {-7.3f, 'E'}, {-4.8f, 'R'}, {-2.3f, 'T'},
     {3.0f, 'Y'},{5.2f, 'U'},{10.2f, 'I'},{12.7f, 'O'},{15.2f, 'P'}
 };
+vector<pair<char, float>> sheetMusic;
 
 vector<pair<char, float>> loadSheetMusicFromFile(const string& filename) {
     vector<pair<char, float>> sheetMusic;
@@ -163,8 +158,6 @@ void audioRecordingCallback(void* udata, Uint8* stream, int len) {
     }
 }
 
-
-
 void initializeAudio() {
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
         cerr << "SDL Initialization Failed: " << SDL_GetError() << endl;
@@ -210,6 +203,7 @@ void initializeAudio() {
         }
     }
 }
+
 void startRecording() {
     if (isRecording) return;
     audioBuffer.clear();
@@ -217,13 +211,13 @@ void startRecording() {
     cout << "Recording started!" << endl;
 }
 
-void stopRecording(const std::string& filename) {
+void stopRecording(const string& filename) {
     if (!isRecording) return;
 
     isRecording = false;
     cout << "Recording stopped! Saving to " << filename << endl;
 
-    std::ofstream wavFile(filename, std::ios::binary);
+    ofstream wavFile(filename, ios::binary);
     if (!wavFile.is_open()) {
         cerr << "Error opening file for recording!" << endl;
         return;
@@ -490,7 +484,6 @@ void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) 
     // Dessiner le texte sur la touche
     drawText(string(1, label).c_str(), x - 0.2f, -5.0f, 1.5f, 0.0f, 0.0f, 0.0f);
 }
-
 // Fonction pour dessiner une touche blanche avec le skin 2
 void drawWhiteKey2(float x, bool isKeyPressed, bool isMousePressed, char label) {
     glPushMatrix(); // Sauvegarder la matrice actuelle
@@ -531,8 +524,6 @@ void drawWhiteKey2(float x, bool isKeyPressed, bool isMousePressed, char label) 
 
     glPopMatrix(); // Restaurer la matrice actuelle
 }
-
-
 // Fonction pour dessiner une touche noire avec le skin 1
 void drawBlackKey1(float x, bool iskeyPressed, bool ismousepressed, char label) {
     glPushMatrix();
@@ -610,23 +601,6 @@ void drawBlackKey2(float x, bool isKeyPressed, bool isMousePressed, char label) 
     glPopMatrix();
 }
 
-
-
-//void draw_1_octave() {
-//    float whiteKeyX = -7.2f;
-//    float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f }; 
-//    float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap; 
-//
-//    for (int i = 0; i < 7; ++i) {
-//        drawWhiteKey(whiteKeyX + i *( whiteKeyWidth+gap), keyStatus[whiteKeys[i]],mouseStatus[whiteKeys[i]],whiteKeys[i]);
-//        
-//    }
-//    for (int i = 0; i < 5; ++i) {
-//        float blackKeyX = whiteKeyX + (blackKeyOffsets[i] * totalWhiteKeyWidthWithGap);
-//        drawBlackKey(blackKeyX,  keyStatus[blackKeys[i]], mouseStatus[blackKeys[i]],blackKeys[i]);
-//    }
-//}
-// Fonction pour dessiner un clavier complet (plusieurs octaves)
 void drawPiano(float startX, int numOctaves) {
     float whiteKeyX = startX;
     float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
@@ -692,8 +666,6 @@ void drawGrid(const vector<KeyMapping>& whiteKeysPosition, float startY, float e
     glVertex3f(lastX, endY, 0.0f);
     glEnd();
 }
-
-
 
 void keyboardUp(unsigned char key, int x, int y) {
     key = toupper(key);
@@ -781,6 +753,7 @@ void mouse(int button, int state, int x, int y) {
         glutPostRedisplay();
     }
 }
+
 void drawFallingRectangle(const FallingRectangle& rect) {
     glPushMatrix();
     glTranslatef(rect.x, rect.y, rect.z);
@@ -813,8 +786,6 @@ void drawFallingRectangle(const FallingRectangle& rect) {
     glPopMatrix();
 }
 
-
-
 void spawnRectangle(bool isWhiteKey, char associatedKey) {
     FallingRectangle rect;
     if (isWhiteKey) {
@@ -843,36 +814,12 @@ void spawnRectangle(bool isWhiteKey, char associatedKey) {
     rectangles.push_back(rect);
 }
 
-//void timerFunc(int value) {
-//    if (rand() % 10 < 7) { 
-//        spawnRectangle(true);
-//    }
-//    else { 
-//        spawnRectangle(false);
-//    }
-//    random_device rd; 
-//    mt19937 gen(rd()); 
-//    uniform_int_distribution<int> dis(500, 1500); 
-//    int nextInterval = dis(gen);
-//    glutTimerFunc(nextInterval, timerFunc, 0);
-//}
-
 void checkRectangleHit(char key) {
     for (auto& rect : rectangles) {
         if (rect.associatedKey == key && rect.isActive) {
             rect.isActive = false;
             break;
         }
-    }
-}
-
-vector<pair<char, float>> sheetMusic;
-void resetKeyStates() {
-    for (auto& status : keyStatus) {
-        status.second = false;
-    }
-    for (auto& status : mouseStatus) {
-        status.second = false;
     }
 }
 
@@ -901,23 +848,24 @@ void keyboardDown(unsigned char key, int x, int y) {
         rectangles.clear();
         cout << "Current track:Happy birthday isDrop:" << isDrop << endl;
         break;
+
     case' ':
         isOrtho = !isOrtho;
         setProjection();
         glutPostRedisplay();
         break;
-    case '7':
 
+    case '7':
         if (currentSkin == 0) { currentSkin = 1; }
         else { currentSkin = 0; }
         glutPostRedisplay();
-
         break;
     case '8': // Start recording
         startRecording();
         break;
     case '9': // Stop recording
-        stopRecording("output.wav");
+        stopRecording("output"+to_string(recordnum)+".wav");
+        recordnum++;
         break;
 
     default:
@@ -934,22 +882,22 @@ void keyboardDown(unsigned char key, int x, int y) {
 //guide pour utilisateur
 void drawUserGuide() {
     // Define colors for ON/OFF states
-    std::string recordingStatus = isRecording ?
+    string recordingStatus = isRecording ?
         "On (Press '9' to stop)" :
         "Off (Press '8' to start)";
 
     // Define the tutorial name
-    std::string tutorialStatus = isDrop ?
+    string tutorialStatus = isDrop ?
         "Tutorial: ACTIVE (Press '1', '2', or '3' to change)" :
         "Tutorial: NONE (Press '1', '2', or '3' to activate)";
 
     // Define skin type
-    std::string skinStatus = currentSkin == 0 ?
+    string skinStatus = currentSkin == 0 ?
         "Skin: MODERN (Press '7' to toggle)" :
         "Skin: CLASSIC (Press '7' to toggle)";
 
     // Define projection type
-    std::string projectionStatus = isOrtho ?
+    string projectionStatus = isOrtho ?
         "Projection: ORTHOGRAPHIC (Press SPACE to toggle)" :
         "Projection: PERSPECTIVE (Press SPACE to toggle)";
 
@@ -967,8 +915,6 @@ void drawUserGuide() {
     // Draw the user guide text
     drawText(guideText.c_str(), startX, startY, 0.0f, 1.0f, 1.0f, 1.0f);
 }
-
-
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1048,7 +994,6 @@ void init() {
     }
 }
 
-
 int main(int argc, char** argv) {
     for (char key : { 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'C', 'V', 'B', 'N', 'M', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'}) {
         keyStatus[key] = false;
@@ -1067,7 +1012,6 @@ int main(int argc, char** argv) {
     glutKeyboardUpFunc(keyboardUp);
     glutMouseFunc(mouse);
     glutTimerFunc(16, update, 0);
-    //glutTimerFunc(1000, timerFunc, 0); 
 
     glutMainLoop();
     cleanupAudio();
