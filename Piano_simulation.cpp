@@ -25,8 +25,7 @@
 using namespace std;
 GLuint whiteKeyTexture;
 GLuint blackKeyTexture;
-
-
+int currentSkin = 0;
 map<char, bool> keyStatus;
 map<char, bool>mouseStatus;
 map<char, Mix_Chunk*> soundEffects;
@@ -332,12 +331,74 @@ void setProjection() {
     }
     glMatrixMode(GL_MODELVIEW);
 }
-// Fonction pour dessiner une touche blanche
-void drawWhiteKey(float x, bool isKeyPressed, bool isMousePressed, char label) {
+// Fonction pour dessiner une touche blanche avec le skin 1
+void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) {
+    // Charger la texture de la touche blanche (seulement une fois)
+    static GLuint texture = loadTexture("2.png");
+    // Définir les coordonnées de texture (tout l'image est utilisée ici)
+    float texCoordWidth = 1.0f;
+    float texCoordHeight = 1.0f;
+
     glPushMatrix();
     glTranslatef(x, 0.0f, 0.0f);
 
-    // Step 1: Draw the texture
+    glEnable(GL_TEXTURE_2D);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glColor3f(1.0f, 1.0f, 1.0f);
+
+    // Dessiner la forme de la touche avec la texture
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0f, 0.0f);
+    glVertex3f(-whiteKeyWidth / 2.0f - 0.5f, -whiteKeyHeight / 2.0f - 0.5f, -0.8f);
+    glTexCoord2f(texCoordWidth, 0.0f);
+    glVertex3f(whiteKeyWidth / 2.0f + 0.5f, -whiteKeyHeight / 2.0f - 0.5f, -0.8f);
+    glTexCoord2f(texCoordWidth, texCoordHeight);
+    glVertex3f(whiteKeyWidth / 2.0f + 0.5f, whiteKeyHeight / 2.0f + 2.5f, -0.8f);
+    glTexCoord2f(0.0f, texCoordHeight);
+    glVertex3f(-whiteKeyWidth / 2.0f - 0.5f, whiteKeyHeight / 2.0f + 2.5f, -0.8f);
+    glEnd();
+    glDisable(GL_TEXTURE_2D);
+
+    // Dessiner une ombre sous la touche avec un léger décalage
+    glColor4f(0.05f, 0.05f, 0.05f, 0.4f);  // Couleur gris  pour l'ombre
+    glPushMatrix();
+    glTranslatef(0.13f, -0.1f, -0.13f); // Décalage de l'ombre
+    drawRoundedRectangle(0.0, 0.0, -0.5f, whiteKeyWidth, whiteKeyHeight, 0.2f, 0);
+    glPopMatrix();
+
+    // Changer la couleur de la touche en fonction de son état (appuyée ou non)
+    if (iskeyPressed || ismousepressed) {
+        glColor3f(1.0f, 0.7f, 0.4f);
+    }
+    else {
+        glColor3f(1.0f, 1.0f, 1.0f);
+    }
+    drawRoundedRectangle3D(0.0, 0.0, 0.0f, whiteKeyWidth, whiteKeyHeight, whiteKeyDepth, 0.2f, 0);
+    glPopMatrix();
+
+    // Dessiner le contour de la touche avec une couleur grise et une épaisseur de ligne plus grande
+    glPushMatrix();
+    glTranslatef(x, 0.0f, 0.0f);
+    glColor3f(0.5f, 0.5f, 0.5f);
+    glLineWidth(3.0f);  // Définir l'épaisseur des lignes pour le bord
+    if (isOrtho) {
+        drawRoundedRectangle(0.0, 0.0, 0.0f, whiteKeyWidth, whiteKeyHeight, 0.2f, 1);
+    }
+    else {
+        drawRoundedRectangle(0.0, 0.0, 0.2f, whiteKeyWidth, whiteKeyHeight, 0.2f, 1);
+    }
+
+
+    glPopMatrix();
+
+    drawText(string(1, label).c_str(), x - 0.2f, -5.0f, 1.5f, 0.0f, 0.0f, 0.0f);
+}
+// Fonction pour dessiner une touche blanche avec le skin 2
+void drawWhiteKey2(float x, bool isKeyPressed, bool isMousePressed, char label) {
+    glPushMatrix(); // Sauvegarder la matrice actuelle
+    glTranslatef(x, 0.0f, 0.0f); // Positionner la touche
+
+    // Étape 1 : Dessiner la texture
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, whiteKeyTexture);
     glColor3f(1.0f, 1.0f, 1.0f);
@@ -349,14 +410,14 @@ void drawWhiteKey(float x, bool isKeyPressed, bool isMousePressed, char label) {
     glEnd();
     glDisable(GL_TEXTURE_2D);
 
-    // Step 2: Draw the illumination if the key is pressed
+    // Étape 2 : Dessiner l'illumination si la touche est pressée
     if (isKeyPressed || isMousePressed) {
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        glColor4f(1.0f, 0.7f, 0.4f, 0.5f); // Semi-transparent illumination
+        glColor4f(1.0f, 0.7f, 0.4f, 0.5f); // Couleur semi-transparente
         glBegin(GL_QUADS);
-        glVertex3f(-whiteKeyWidth / 2.0f, -whiteKeyHeight / 2.0f, 0.01f); // Slightly above the texture
+        glVertex3f(-whiteKeyWidth / 2.0f, -whiteKeyHeight / 2.0f, 0.01f); // Légèrement au-dessus de la texture
         glVertex3f(whiteKeyWidth / 2.0f, -whiteKeyHeight / 2.0f, 0.01f);
         glVertex3f(whiteKeyWidth / 2.0f, whiteKeyHeight / 2.0f, 0.01f);
         glVertex3f(-whiteKeyWidth / 2.0f, whiteKeyHeight / 2.0f, 0.01f);
@@ -365,21 +426,53 @@ void drawWhiteKey(float x, bool isKeyPressed, bool isMousePressed, char label) {
         glDisable(GL_BLEND);
     }
 
-    // Step 3: Draw the label on top
-    glDisable(GL_DEPTH_TEST); // Disable depth test to ensure text always appears on top
-    drawText(&label, -whiteKeyWidth / 4.0f, 0.0f, 0.02f, 0.0f, 0.0f, 0.0f); // Adjust text position & color
-    glEnable(GL_DEPTH_TEST);  // Re-enable depth test
+    // Étape 3 : Dessiner le texte sur le bouton (en bas, centré)
+    glDisable(GL_DEPTH_TEST); // Désactiver le test de profondeur pour que le texte soit toujours visible
+    drawText(&label, -whiteKeyWidth / 4.0f, -whiteKeyHeight / 2.0f + 0.5f, 0.02f, 0.0f, 0.0f, 0.0f); // Position et couleur
+    glEnable(GL_DEPTH_TEST); // Réactiver le test de profondeur
 
-    glPopMatrix();
+    glPopMatrix(); // Restaurer la matrice actuelle
 }
 
 
+// Fonction pour dessiner une touche noire avec le skin 1
+void drawBlackKey1(float x, bool iskeyPressed, bool ismousepressed, char label) {
+    glPushMatrix();
+    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.0f);
+    // Dessiner l'ombre de la touche noire
+    glColor4f(0.1f, 0.1f, 0.1f, 0.4f);
+    glTranslatef(0.05f, -0.1f, -0.05f); //Décalage de l'ombre
+    drawRoundedRectangle(0.0, 0.0, 0.5f, blackKeyWidth, blackKeyHeight, 0.2f, 0);
+    glPopMatrix();
 
+    // Définir la couleur de la touche noire en fonction de son état (appuyée ou non)
+    glPushMatrix();
+    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.5f);
 
+    if (iskeyPressed || ismousepressed) {
+        glColor3f(1.0f, 0.7f, 0.4f);
+    }
+    else {
+        glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+    }
+    drawRoundedRectangle3D(0.0, 0.0, 0.4f, blackKeyWidth, blackKeyHeight, blackKeyDepth, 0.15f, 0);
+    glPopMatrix();
 
+    // Dessiner le contour de la touche noire pour créer un effet visuel
+    glPushMatrix();
+    // Déplacer légèrement pour que le contour soit devant la touche
+    glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.5f);
+    glColor3f(0.4f, 0.4f, 0.4f);
+    glLineWidth(2.0f);  // Définir l'épaisseur des lignes pour le contour
+    float scale = 1.005f;
+    glScalef(scale, scale, scale);
+    drawRoundedRectangle(0.0, 0.0, 0.2f, blackKeyWidth, blackKeyHeight, 0.2f, 1);
 
-// Fonction pour dessiner une touche noire
-void drawBlackKey(float x, bool isKeyPressed, bool isMousePressed, char label) {
+    glPopMatrix();
+    drawText(string(1, label).c_str(), x - 0.15f, -0.8f, 2.0f, 1.0f, 1.0f, 1.0f);
+}
+// Fonction pour dessiner une touche noire avec le skin 2
+void drawBlackKey2(float x, bool isKeyPressed, bool isMousePressed, char label) {
     glPushMatrix();
     glTranslatef(x, whiteKeyHeight / 2.0f - blackKeyHeight / 2.0f, 0.5f);
 
@@ -421,8 +514,6 @@ void drawBlackKey(float x, bool isKeyPressed, bool isMousePressed, char label) {
 
 
 
-
-
 //void draw_1_octave() {
 //    float whiteKeyX = -7.2f;
 //    float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f }; 
@@ -439,21 +530,34 @@ void drawBlackKey(float x, bool isKeyPressed, bool isMousePressed, char label) {
 //}
 // Fonction pour dessiner un clavier complet (plusieurs octaves)
 void drawPiano(float startX, int numOctaves) {
-    float whiteKeyX = startX;  // Position de départ de la première octave
+    float whiteKeyX = startX;
     float blackKeyOffsets[] = { 0.5f, 1.5f, 3.5f, 4.5f, 5.5f };
     float totalWhiteKeyWidthWithGap = whiteKeyWidth + gap;
 
     for (int octave = 0; octave < numOctaves; ++octave) {
         // Dessiner les touches blanches pour l'octave actuelle
         for (int i = 0; i < 7; ++i) {
-            drawWhiteKey(whiteKeyX + i * totalWhiteKeyWidthWithGap, keyStatus[whiteKeys[i + octave * 7]],
-                mouseStatus[whiteKeys[i + octave * 7]], whiteKeys[i + octave * 7]);
+            if (currentSkin == 0) {
+                drawWhiteKey1(whiteKeyX + i * totalWhiteKeyWidthWithGap, keyStatus[whiteKeys[i + octave * 7]],
+                    mouseStatus[whiteKeys[i + octave * 7]], whiteKeys[i + octave * 7]);
+            }
+            else {
+                drawWhiteKey2(whiteKeyX + i * totalWhiteKeyWidthWithGap, keyStatus[whiteKeys[i + octave * 7]],
+                    mouseStatus[whiteKeys[i + octave * 7]], whiteKeys[i + octave * 7]);
+            }
         }
 
         // Dessiner les touches noires pour l'octave actuelle
         for (int i = 0; i < 5; ++i) {
             float blackKeyX = whiteKeyX + (blackKeyOffsets[i] * totalWhiteKeyWidthWithGap);
-            drawBlackKey(blackKeyX, keyStatus[blackKeys[i + octave * 5]], mouseStatus[blackKeys[i + octave * 5]], blackKeys[i + octave * 5]);
+            if (currentSkin == 0) {
+                drawBlackKey1(blackKeyX, keyStatus[blackKeys[i + octave * 5]],
+                    mouseStatus[blackKeys[i + octave * 5]], blackKeys[i + octave * 5]);
+            }
+            else {
+                drawBlackKey2(blackKeyX, keyStatus[blackKeys[i + octave * 5]],
+                    mouseStatus[blackKeys[i + octave * 5]], blackKeys[i + octave * 5]);
+            }
         }
 
         // Passer à la prochaine octave
@@ -630,6 +734,12 @@ void keyboardDown(unsigned char key, int x, int y) {
         setProjection();
         glutPostRedisplay();
         break;
+    case '7' :
+        if (currentSkin == 0) { currentSkin = 1; }
+        else { currentSkin = 0; }
+        glutPostRedisplay();
+        break;
+
     default:
         key = toupper(key);
         if (keyStatus[key] == false && soundEffects[key]) {
@@ -715,6 +825,7 @@ void init() {
         std::cerr << "Failed to load black.jpg texture!" << std::endl;
     }
 }
+
 
 int main(int argc, char** argv) {
     for (char key : { 'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'C', 'V', 'B', 'N', 'M', 'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'}) {
