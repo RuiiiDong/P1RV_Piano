@@ -377,6 +377,8 @@ void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) 
     glPushMatrix();
     glTranslatef(x, 0.0f, 0.0f);
 
+    /*
+    // Activer et lier la texture
     glEnable(GL_TEXTURE_2D);
     glBindTexture(GL_TEXTURE_2D, texture);
     glColor3f(1.0f, 1.0f, 1.0f);
@@ -393,9 +395,10 @@ void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) 
     glVertex3f(-whiteKeyWidth / 2.0f - 0.5f, whiteKeyHeight / 2.0f + 2.5f, -0.8f);
     glEnd();
     glDisable(GL_TEXTURE_2D);
+    */
 
     // Dessiner une ombre sous la touche avec un léger décalage
-    glColor4f(0.05f, 0.05f, 0.05f, 0.4f);  // Couleur gris  pour l'ombre
+    glColor4f(0.05f, 0.05f, 0.05f, 0.4f);  // Couleur gris pour l'ombre
     glPushMatrix();
     glTranslatef(0.13f, -0.1f, -0.13f); // Décalage de l'ombre
     drawRoundedRectangle(0.0, 0.0, -0.5f, whiteKeyWidth, whiteKeyHeight, 0.2f, 0);
@@ -423,11 +426,12 @@ void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) 
         drawRoundedRectangle(0.0, 0.0, 0.2f, whiteKeyWidth, whiteKeyHeight, 0.2f, 1);
     }
 
-
     glPopMatrix();
 
+    // Dessiner le texte sur la touche
     drawText(string(1, label).c_str(), x - 0.2f, -5.0f, 1.5f, 0.0f, 0.0f, 0.0f);
 }
+
 // Fonction pour dessiner une touche blanche avec le skin 2
 void drawWhiteKey2(float x, bool isKeyPressed, bool isMousePressed, char label) {
     glPushMatrix(); // Sauvegarder la matrice actuelle
