@@ -32,6 +32,10 @@ int currentSkin = 0;
 map<char, bool> keyStatus;
 map<char, bool>mouseStatus;
 map<char, Mix_Chunk*> soundEffects;
+//variables liés au recording
+std::vector<Uint8> audioBuffer; // Buffer to store audio data
+bool isRecording = false;      // Recording state
+
 
 // Définition des dimensions des touches du piano
 float whiteKeyWidth = 2.4f; // Largeur des touches blanches : 2.4 cm
@@ -152,17 +156,26 @@ GLuint loadTexture(const char* filePath) {
     stbi_image_free(data);
     return texture;
 }
+//fonctions liée au son/recording
+void audioRecordingCallback(void* udata, Uint8* stream, int len) {
+    if (isRecording) {
+        audioBuffer.insert(audioBuffer.end(), stream, stream + len);
+    }
+}
+
+
 
 void initializeAudio() {
     if (SDL_Init(SDL_INIT_AUDIO) < 0) {
-        cerr << "Échec d'initialisation de SDL : " << SDL_GetError() << endl;
+        cerr << "SDL Initialization Failed: " << SDL_GetError() << endl;
         exit(1);
     }
     if (Mix_OpenAudio(44100, MIX_DEFAULT_FORMAT, 2, 2048) < 0) {
-        cerr << "Échec d'ouverture de Mix_OpenAudio : " << Mix_GetError() << endl;
+        cerr << "Mix_OpenAudio Failed: " << Mix_GetError() << endl;
         exit(1);
     }
     Mix_AllocateChannels(100);
+    Mix_SetPostMix(audioRecordingCallback, nullptr);
     // Charger les fichiers audio pour chaque touche
     soundEffects['A'] = Mix_LoadWAV("sounds/A40.wav");
     soundEffects['S'] = Mix_LoadWAV("sounds/S42.wav");
@@ -196,6 +209,54 @@ void initializeAudio() {
             cerr << "Impossible de charger le fichier audio pour la touche " << pair.first << ": " << Mix_GetError() << endl;
         }
     }
+}
+void startRecording() {
+    if (isRecording) return;
+    audioBuffer.clear();
+    isRecording = true;
+    cout << "Recording started!" << endl;
+}
+
+void stopRecording(const std::string& filename) {
+    if (!isRecording) return;
+
+    isRecording = false;
+    cout << "Recording stopped! Saving to " << filename << endl;
+
+    std::ofstream wavFile(filename, std::ios::binary);
+    if (!wavFile.is_open()) {
+        cerr << "Error opening file for recording!" << endl;
+        return;
+    }
+
+    // Write WAV header
+    Uint32 dataSize = audioBuffer.size();
+    wavFile.write("RIFF", 4);
+    Uint32 fileSize = 36 + dataSize;
+    wavFile.write(reinterpret_cast<const char*>(&fileSize), 4);
+    wavFile.write("WAVE", 4);
+    wavFile.write("fmt ", 4);
+    Uint32 subChunk1Size = 16;
+    wavFile.write(reinterpret_cast<const char*>(&subChunk1Size), 4);
+    Uint16 audioFormat = 1;
+    wavFile.write(reinterpret_cast<const char*>(&audioFormat), 2);
+    Uint16 numChannels = 2; // Stereo
+    wavFile.write(reinterpret_cast<const char*>(&numChannels), 2);
+    Uint32 sampleRate = 44100;
+    wavFile.write(reinterpret_cast<const char*>(&sampleRate), 4);
+    Uint32 byteRate = sampleRate * numChannels * 2;
+    wavFile.write(reinterpret_cast<const char*>(&byteRate), 4);
+    Uint16 blockAlign = numChannels * 2;
+    wavFile.write(reinterpret_cast<const char*>(&blockAlign), 2);
+    Uint16 bitsPerSample = 16;
+    wavFile.write(reinterpret_cast<const char*>(&bitsPerSample), 2);
+    wavFile.write("data", 4);
+    wavFile.write(reinterpret_cast<const char*>(&dataSize), 4);
+
+    // Write audio data
+    wavFile.write(reinterpret_cast<const char*>(audioBuffer.data()), dataSize);
+    wavFile.close();
+    cout << "Recording saved!" << endl;
 }
 
 void cleanupAudio() {
@@ -854,6 +915,12 @@ void keyboardDown(unsigned char key, int x, int y) {
         glutPostRedisplay();
 
         break;
+    case '8': // Start recording
+        startRecording();
+        break;
+    case '9': // Stop recording
+        stopRecording("output.wav");
+        break;
 
     default:
         key = toupper(key);
@@ -866,6 +933,44 @@ void keyboardDown(unsigned char key, int x, int y) {
     }
     checkRectangleHit(key);
 }
+//guide pour utilisateur
+void drawUserGuide() {
+    // Define colors for ON/OFF states
+    std::string recordingStatus = isRecording ?
+        "On (Press '9' to stop)" :
+        "Off (Press '8' to start)";
+
+    // Define the tutorial name
+    std::string tutorialStatus = isDrop ?
+        "Tutorial: ACTIVE (Press '1', '2', or '3' to change)" :
+        "Tutorial: NONE (Press '1', '2', or '3' to activate)";
+
+    // Define skin type
+    std::string skinStatus = currentSkin == 0 ?
+        "Skin: CLASSIC (Press '7' to toggle)" :
+        "Skin: MODERN (Press '7' to toggle)";
+
+    // Define projection type
+    std::string projectionStatus = isOrtho ?
+        "Projection: ORTHOGRAPHIC (Press SPACE to toggle)" :
+        "Projection: PERSPECTIVE (Press SPACE to toggle)";
+
+    // Combine all guide messages
+    std::string guideText =
+        "Recording: " + recordingStatus + " / " +
+        tutorialStatus + " / " +
+        skinStatus + " / " +
+        projectionStatus;
+
+    // Adjust the starting position to push it left
+    float startX = -19.0f; // Shifted further to the left
+    float startY = -14.0f;
+
+    // Draw the user guide text
+    drawText(guideText.c_str(), startX, startY, 0.0f, 1.0f, 1.0f, 1.0f);
+}
+
+
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -878,8 +983,10 @@ void display() {
     }
     //draw Piano
     drawPiano(-16.0f, numOctaves);
+    //guide utilisateur
+    drawUserGuide();
 
-    drawGrid(whiteKeys_position, 15.0f, -15.0f);
+    if (isDrop) { drawGrid(whiteKeys_position, 15.0f, -15.0f); }
     if (isDrop) {
         for (auto& rect : rectangles) {
             if (rect.isActive) {
