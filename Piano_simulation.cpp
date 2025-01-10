@@ -600,6 +600,38 @@ void drawPiano(float startX, int numOctaves) {
     }
 }
 
+void drawGrid(const vector<KeyMapping>& whiteKeysPosition, float startY, float endY) {
+    glColor4f(0.0f, 0.0f, 0.0f, 0.3f); // Semi-transparent black
+
+    // Draw vertical lines between white keys (merge successive lines)
+    for (size_t i = 0; i < whiteKeysPosition.size() - 1; ++i) {
+        // Calculate the middle point between two adjacent keys
+        float middleX = (whiteKeysPosition[i].xPosition + whiteKeysPosition[i + 1].xPosition) / 2.0f;
+
+        // Draw a single line at the middle point
+        glBegin(GL_LINES);
+        glVertex3f(middleX, startY, 0.0f);
+        glVertex3f(middleX, endY, 0.0f);
+        glEnd();
+    }
+
+    // Draw the first and last vertical lines to frame the grid
+    float firstX = whiteKeysPosition.front().xPosition - whiteKeyWidth / 2.0f;
+    float lastX = whiteKeysPosition.back().xPosition + whiteKeyWidth / 2.0f;
+
+    glBegin(GL_LINES);
+    glVertex3f(firstX, startY, 0.0f);
+    glVertex3f(firstX, endY, 0.0f);
+    glEnd();
+
+    glBegin(GL_LINES);
+    glVertex3f(lastX, startY, 0.0f);
+    glVertex3f(lastX, endY, 0.0f);
+    glEnd();
+}
+
+
+
 void keyboardUp(unsigned char key, int x, int y) {
     key = toupper(key);
     keyStatus[key] = false;
@@ -840,8 +872,10 @@ void display() {
     else {
         gluLookAt(0.0, -1.0, 25.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
     }
-
+    //draw Piano
     drawPiano(-16.0f, numOctaves);
+
+    drawGrid(whiteKeys_position, 15.0f, -15.0f);
     if (isDrop) {
         for (auto& rect : rectangles) {
             if (rect.isActive) {
