@@ -242,7 +242,6 @@ void cleanupAudio() {
     SDL_Quit();
 }
 
-
 void setProjection() {
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
@@ -922,7 +921,7 @@ void keyboardDown(unsigned char key, int x, int y) {
         startRecording();
         break;
     case '9': // Stop recording
-        stopRecording("output"+to_string(recordnum)+".wav");
+        stopRecording("Recordings/output"+to_string(recordnum)+".wav");
         recordnum++;
         break;
 
