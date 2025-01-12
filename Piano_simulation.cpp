@@ -20,19 +20,17 @@
 #include <SDL_mixer.h>
 
 using namespace std;
+//Texure
 GLuint whiteKeyTexture;
 GLuint blackKeyTexture;
 GLuint texture;
 
-
-map<char, bool> keyStatus;
-map<char, bool>mouseStatus;
-map<char, Mix_Chunk*> soundEffects;
 //variables liés au recording
 vector<Uint8> audioBuffer; // Buffer to store audio data
 bool isRecording = false;      // Recording state
+int recordnum = 0;
 
-// Définition des dimensions des touches du piano
+// dimensions des touches du piano
 float whiteKeyWidth = 2.4f; // Largeur des touches blanches : 2.4 cm
 float whiteKeyHeight = 15.0f;  // Longueur des touches blanches : 15 cm
 float whiteKeyDepth = 0.7f;
@@ -41,13 +39,39 @@ float blackKeyHeight = 10.0f; // Longueur des touches noires :10 cm
 float blackKeyDepth = 0.4f;
 float gap = 0.1f;// Espace entre les touches blanches
 int numOctaves = 2;
+
 bool isOrtho = true;
 bool isDrop = false;
 int currentSkin = 0;
-float startTime = 0.0f;
-int recordnum = 0;
+
 char whiteKeys[] = { 'A', 'S', 'D', 'F', 'G', 'H', 'J' ,'K','L','C','V','B','N','M' };
 char blackKeys[] = { 'Q', 'W', 'E', 'R', 'T','Y', 'U', 'I', 'O', 'P' };
+map<char, bool> keyStatus;
+map<char, bool>mouseStatus;
+map<char, Mix_Chunk*> soundEffects;//Storing Keyboard Sound Files
+
+// Variables relatives au mode tutoriel
+float startTime = 0.0f;
+struct FallingRectangle {
+    float x, y, z;
+    float width, height;
+    char associatedKey;
+    bool isActive;
+};
+vector<FallingRectangle> rectangles;
+struct KeyMapping {
+    float xPosition;
+    char associatedKey;
+};
+vector<KeyMapping> whiteKeys_position = {
+    {-16.0f, 'A'}, {-13.5f, 'S'}, {-11.0f, 'D'}, {-8.5f, 'F'}, {-6.0f, 'G'},{-3.5f, 'H'}, {-1.0f, 'J'},
+    {1.5f, 'K'}, {4.0f, 'L'}, {6.5f, 'C'}, {9.0f, 'V'},{11.5f, 'B'},{14.0f, 'N'},{16.5f,'M'}
+};
+vector<KeyMapping> blackKeys_position = {
+    {-14.8f, 'Q'}, {-12.3f, 'W'}, {-7.3f, 'E'}, {-4.8f, 'R'}, {-2.3f, 'T'},
+    {3.0f, 'Y'},{5.2f, 'U'},{10.2f, 'I'},{12.7f, 'O'},{15.2f, 'P'}
+};
+vector<pair<char, float>> sheetMusic;
 map<char, tuple<float, float, float>> keyColors = {
     {'A', {0.96f, 0.26f, 0.21f}},
     {'S', {0.30f, 0.69f, 0.31f}},
@@ -75,49 +99,6 @@ map<char, tuple<float, float, float>> keyColors = {
     {'P', {0.99f, 0.68f, 0.13f}}
 };
 
-struct FallingRectangle {
-    float x, y, z;
-    float width, height;
-    char associatedKey;
-    bool isActive;
-};
-vector<FallingRectangle> rectangles;
-
-struct KeyMapping {
-    float xPosition;
-    char associatedKey;
-};
-vector<KeyMapping> whiteKeys_position = {
-    {-16.0f, 'A'}, {-13.5f, 'S'}, {-11.0f, 'D'}, {-8.5f, 'F'}, {-6.0f, 'G'},{-3.5f, 'H'}, {-1.0f, 'J'},
-    {1.5f, 'K'}, {4.0f, 'L'}, {6.5f, 'C'}, {9.0f, 'V'},{11.5f, 'B'},{14.0f, 'N'},{16.5f,'M'}
-};
-vector<KeyMapping> blackKeys_position = {
-    {-14.8f, 'Q'}, {-12.3f, 'W'}, {-7.3f, 'E'}, {-4.8f, 'R'}, {-2.3f, 'T'},
-    {3.0f, 'Y'},{5.2f, 'U'},{10.2f, 'I'},{12.7f, 'O'},{15.2f, 'P'}
-};
-vector<pair<char, float>> sheetMusic;
-
-vector<pair<char, float>> loadSheetMusicFromFile(const string& filename) {
-    vector<pair<char, float>> sheetMusic;
-
-    ifstream file(filename);
-    if (!file.is_open()) {
-        cerr << "Can't open file" << filename << endl;
-        return sheetMusic;
-    }
-
-    string line;
-    while (getline(file, line)) {
-        istringstream iss(line);
-        char key;
-        float time;
-        if (iss >> key >> time) {
-            sheetMusic.push_back({ key, time });
-        }
-    }
-
-    return sheetMusic;
-}
 // Fonction pour charger une texture à partir d'un fichier image
 GLuint loadTexture(const char* filePath) {
     int width, height, nrChannels;
@@ -259,6 +240,19 @@ void cleanupAudio() {
     }
     Mix_CloseAudio();
     SDL_Quit();
+}
+
+
+void setProjection() {
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    if (isOrtho) {
+        glOrtho(-20, 20, -15, 15, 1.0, 200.0);
+    }
+    else {
+        gluPerspective(60.0, 4.0 / 3.0, 1.0, 200.0);
+    }
+    glMatrixMode(GL_MODELVIEW);
 }
 
 void drawText(const char* text, float x, float y, float z, float r, float g, float b) {
@@ -406,18 +400,6 @@ void drawRoundedRectangle3D(float centerX, float centerY, float centerZ, float w
             glEnd();
         }
     }
-}
-
-void setProjection() {
-    glMatrixMode(GL_PROJECTION);
-    glLoadIdentity();
-    if (isOrtho) {
-        glOrtho(-20, 20, -15, 15, 1.0, 200.0);
-    }
-    else {
-        gluPerspective(60.0, 4.0 / 3.0, 1.0, 200.0);
-    }
-    glMatrixMode(GL_MODELVIEW);
 }
 // Fonction pour dessiner une touche blanche avec le skin 1
 void drawWhiteKey1(float x, bool iskeyPressed, bool ismousepressed, char label) {
@@ -637,34 +619,49 @@ void drawPiano(float startX, int numOctaves) {
     }
 }
 
-void drawGrid(const vector<KeyMapping>& whiteKeysPosition, float startY, float endY) {
-    glColor4f(0.0f, 0.0f, 0.0f, 0.3f); // Semi-transparent black
+void drawUserGuide() {
+    // Define colors for ON/OFF states
+    string recordingStatus = isRecording ?
+        "On (Press '9' to stop)" :
+        "Off (Press '8' to start)";
 
-    // Draw vertical lines between white keys (merge successive lines)
-    for (size_t i = 0; i < whiteKeysPosition.size() - 1; ++i) {
-        // Calculate the middle point between two adjacent keys
-        float middleX = (whiteKeysPosition[i].xPosition + whiteKeysPosition[i + 1].xPosition) / 2.0f;
+    // Define the tutorial name
+    string tutorialStatus = isDrop ?
+        "Tutorial: ACTIVE (Press '1', '2', or '3' to change)" :
+        "Tutorial: NONE (Press '1', '2', or '3' to activate)";
 
-        // Draw a single line at the middle point
-        glBegin(GL_LINES);
-        glVertex3f(middleX, startY, 0.0f);
-        glVertex3f(middleX, endY, 0.0f);
-        glEnd();
+    // Define skin type
+    string skinStatus = currentSkin == 0 ?
+        "Skin: MODERN (Press '7' to toggle)" :
+        "Skin: CLASSIC (Press '7' to toggle)";
+
+    // Define projection type
+    string projectionStatus = isOrtho ?
+        "Projection: ORTHOGRAPHIC (Press SPACE to toggle)" :
+        "Projection: PERSPECTIVE (Press SPACE to toggle)";
+
+    // Combine all guide messages
+    std::string guideText =
+        "Recording: " + recordingStatus + " / " +
+        tutorialStatus + " / " +
+        skinStatus + " / " +
+        projectionStatus;
+
+    // Adjust the starting position to push it left
+    float startX = -19.0f; // Shifted further to the left
+    float startY = -14.0f;
+
+    // Draw the user guide text
+    drawText(guideText.c_str(), startX, startY, 0.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void checkRectangleHit(char key) {
+    for (auto& rect : rectangles) {
+        if (rect.associatedKey == key && rect.isActive) {
+            rect.isActive = false;
+            break;
+        }
     }
-
-    // Draw the first and last vertical lines to frame the grid
-    float firstX = whiteKeysPosition.front().xPosition - whiteKeyWidth / 2.0f;
-    float lastX = whiteKeysPosition.back().xPosition + whiteKeyWidth / 2.0f;
-
-    glBegin(GL_LINES);
-    glVertex3f(firstX, startY, 0.0f);
-    glVertex3f(firstX, endY, 0.0f);
-    glEnd();
-
-    glBegin(GL_LINES);
-    glVertex3f(lastX, startY, 0.0f);
-    glVertex3f(lastX, endY, 0.0f);
-    glEnd();
 }
 
 void keyboardUp(unsigned char key, int x, int y) {
@@ -708,12 +705,7 @@ void mouse(int button, int state, int x, int y) {
                     }
                     mouseStatus[key] = true;
                     if (isDrop) {
-                        for (auto& rect : rectangles) {
-                            if (rect.associatedKey == key && rect.isActive) {
-                                rect.isActive = false;
-                                break;
-                            }
-                        }
+                        checkRectangleHit(key);
                     }
                     glutPostRedisplay();
                     return;
@@ -732,13 +724,8 @@ void mouse(int button, int state, int x, int y) {
                     }
                     mouseStatus[key] = true;
                     if (isDrop) {
-                        for (auto& rect : rectangles) {
-                            if (rect.associatedKey == key && rect.isActive) {
-                                rect.isActive = false;
-                                break;
-                            }
+                        checkRectangleHit(key);
                         }
-                    }
                     glutPostRedisplay();
                     return;
                 }
@@ -752,6 +739,59 @@ void mouse(int button, int state, int x, int y) {
         }
         glutPostRedisplay();
     }
+}
+//Equations relatives au modèle de tutorat
+//Lecture de partitions à partir d'un fichier txt
+vector<pair<char, float>> loadSheetMusicFromFile(const string& filename) {
+    vector<pair<char, float>> sheetMusic;
+
+    ifstream file(filename);
+    if (!file.is_open()) {
+        cerr << "Can't open file" << filename << endl;
+        return sheetMusic;
+    }
+
+    string line;
+    while (getline(file, line)) {
+        istringstream iss(line);
+        char key;
+        float time;
+        if (iss >> key >> time) {
+            sheetMusic.push_back({ key, time });
+        }
+    }
+
+    return sheetMusic;
+}
+
+void drawGrid(const vector<KeyMapping>& whiteKeysPosition, float startY, float endY) {
+    glColor4f(0.0f, 0.0f, 0.0f, 0.3f); // Semi-transparent black
+
+    // Draw vertical lines between white keys (merge successive lines)
+    for (size_t i = 0; i < whiteKeysPosition.size() - 1; ++i) {
+        // Calculate the middle point between two adjacent keys
+        float middleX = (whiteKeysPosition[i].xPosition + whiteKeysPosition[i + 1].xPosition) / 2.0f;
+
+        // Draw a single line at the middle point
+        glBegin(GL_LINES);
+        glVertex3f(middleX, startY, 0.0f);
+        glVertex3f(middleX, endY, 0.0f);
+        glEnd();
+    }
+
+    // Draw the first and last vertical lines to frame the grid
+    float firstX = whiteKeysPosition.front().xPosition - whiteKeyWidth / 2.0f;
+    float lastX = whiteKeysPosition.back().xPosition + whiteKeyWidth / 2.0f;
+
+    glBegin(GL_LINES);
+    glVertex3f(firstX, startY, 0.0f);
+    glVertex3f(firstX, endY, 0.0f);
+    glEnd();
+
+    glBegin(GL_LINES);
+    glVertex3f(lastX, startY, 0.0f);
+    glVertex3f(lastX, endY, 0.0f);
+    glEnd();
 }
 
 void drawFallingRectangle(const FallingRectangle& rect) {
@@ -814,13 +854,31 @@ void spawnRectangle(bool isWhiteKey, char associatedKey) {
     rectangles.push_back(rect);
 }
 
-void checkRectangleHit(char key) {
-    for (auto& rect : rectangles) {
-        if (rect.associatedKey == key && rect.isActive) {
-            rect.isActive = false;
-            break;
+void update(int value) {
+    if (isDrop) {
+        float currentTime = (glutGet(GLUT_ELAPSED_TIME) / 1000.0f) - startTime;
+
+        // Iterate over the score to generate rectangles
+        while (!sheetMusic.empty() && sheetMusic.front().second <= currentTime) {
+            char key = sheetMusic.front().first;
+            bool isWhiteKey = find(begin(whiteKeys), end(whiteKeys), key) != end(whiteKeys);
+            spawnRectangle(isWhiteKey, key);
+            sheetMusic.erase(sheetMusic.begin());
         }
+
+        for (auto& rect : rectangles) {
+            if (rect.isActive) {
+                rect.y -= 0.05f; // Rectangular descent speed
+                if (rect.y < -15.0f) {
+                    rect.isActive = false; // Rectangle disappears when out of range
+                }
+            }
+        }
+
+        glutPostRedisplay();
     }
+
+    glutTimerFunc(16, update, 0); // Updated every 16ms
 }
 
 void keyboardDown(unsigned char key, int x, int y) {
@@ -879,42 +937,6 @@ void keyboardDown(unsigned char key, int x, int y) {
     }
     checkRectangleHit(key);
 }
-//guide pour utilisateur
-void drawUserGuide() {
-    // Define colors for ON/OFF states
-    string recordingStatus = isRecording ?
-        "On (Press '9' to stop)" :
-        "Off (Press '8' to start)";
-
-    // Define the tutorial name
-    string tutorialStatus = isDrop ?
-        "Tutorial: ACTIVE (Press '1', '2', or '3' to change)" :
-        "Tutorial: NONE (Press '1', '2', or '3' to activate)";
-
-    // Define skin type
-    string skinStatus = currentSkin == 0 ?
-        "Skin: MODERN (Press '7' to toggle)" :
-        "Skin: CLASSIC (Press '7' to toggle)";
-
-    // Define projection type
-    string projectionStatus = isOrtho ?
-        "Projection: ORTHOGRAPHIC (Press SPACE to toggle)" :
-        "Projection: PERSPECTIVE (Press SPACE to toggle)";
-
-    // Combine all guide messages
-    std::string guideText =
-        "Recording: " + recordingStatus + " / " +
-        tutorialStatus + " / " +
-        skinStatus + " / " +
-        projectionStatus;
-
-    // Adjust the starting position to push it left
-    float startX = -19.0f; // Shifted further to the left
-    float startY = -14.0f;
-
-    // Draw the user guide text
-    drawText(guideText.c_str(), startX, startY, 0.0f, 1.0f, 1.0f, 1.0f);
-}
 
 void display() {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -936,39 +958,11 @@ void display() {
             if (rect.isActive) {
                 drawFallingRectangle(rect);
             }
-
-
         }
     }
     glutSwapBuffers();
 }
 
-void update(int value) {
-    if (isDrop) {
-        float currentTime = (glutGet(GLUT_ELAPSED_TIME) / 1000.0f) - startTime;
-
-        // Iterate over the score to generate rectangles
-        while (!sheetMusic.empty() && sheetMusic.front().second <= currentTime) {
-            char key = sheetMusic.front().first;
-            bool isWhiteKey = find(begin(whiteKeys), end(whiteKeys), key) != end(whiteKeys);
-            spawnRectangle(isWhiteKey, key);
-            sheetMusic.erase(sheetMusic.begin());
-        }
-
-        for (auto& rect : rectangles) {
-            if (rect.isActive) {
-                rect.y -= 0.05f; // Rectangular descent speed
-                if (rect.y < -15.0f) {
-                    rect.isActive = false; // Rectangle disappears when out of range
-                }
-            }
-        }
-
-        glutPostRedisplay();
-    }
-
-    glutTimerFunc(16, update, 0); // Updated every 16ms
-}
 // Fonction d'initialisation
 void init() {
     glEnable(GL_DEPTH_TEST);
@@ -981,16 +975,16 @@ void init() {
     // Load textures
     whiteKeyTexture = loadTexture("white.png");
     if (whiteKeyTexture == 0) {
-        std::cerr << "Failed to load white.jpg texture!" << std::endl;
+        cerr << "Failed to load white.jpg texture!" << std::endl;
     }
 
     blackKeyTexture = loadTexture("black.jpg");
     if (blackKeyTexture == 0) {
-        std::cerr << "Failed to load black.jpg texture!" << std::endl;
+        cerr << "Failed to load black.jpg texture!" << std::endl;
     }
     texture = loadTexture("2.png");
     if (texture == 0) {
-        std::cerr << "Failed to load 2.png texture!" << std::endl;
+        cerr << "Failed to load 2.png texture!" << std::endl;
     }
 }
 
